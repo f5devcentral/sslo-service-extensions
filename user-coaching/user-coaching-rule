@@ -13,7 +13,6 @@ when RULE_INIT {
     ##   tmsh list sys url-db url-category |grep "sys url-db url-category " |awk -F" " '{print $4}'
     ## ===========================================
     set static::BLOCKING_CATEGORIES {
-        "/Common/Information_Technology"
         "/Common/Uncategorized"
         "/Common/Unknown"
     }
@@ -39,7 +38,7 @@ when RULE_INIT {
     ## ===========================================
     ## SESSION TIMER: Use this value to define the timeout value for the user session table entry (in seconds)
     ## ===========================================
-    set static::SESSION_TIMER 15
+    set static::SESSION_TIMER 3600
 
     ## ===========================================
     ## BLOCKING MESSAGE: Use this string to indicate the message that will appear on the blocking page.
