@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warning: Page Blocked</title>
+    <script>
+        function btnAgree() {
+            window.location.href = "https://$receive_host/f5_handler_coaching?uri=$receive_uri";
+        }
+        function btnCancel() {
+            //window.location.href = "https://www.f5.com/";
+            if (window.history.length <= 1) {
+                window.close();
+            } else {
+                window.history.go(-1); return false;
+            }
+        }
+    </script>
+    <style>
+        body {
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to right, #1e3c72, #2a5298, #4f6d91, #6a8ca2); /* Multiple shades of blue */
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .warning-container {
+            text-align: center;
+            padding: 20px;
+            background-color: rgba(255, 0, 0, 0.8);
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+            width: 50%;
+        }
+        h1 {
+            margin: 0;
+            font-size: 36px;
+        }
+        p {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+        button {
+            background-color: #2b2301;
+            color: #ffffff;
+            display: inline-block; 
+            padding: 3px 10px;
+            font-weight: bold;
+            border-radius: 5px;
+        }
+        #justification {
+            width: 95%;
+        }
+    </style>
+</head>
+<body>
+    <div class="warning-container">
+        <h1>Warning</h1>
+        <p>$receive_msg</p>
+        <p id="messaging"></p>
+        <script>
+            if ("$receive_justify" == "enabled") {
+                document.getElementById("messaging").innerHTML = 'Please enter a justification below:<br /><form action="./f5_handler_coaching?uri=$receive_uri" method="POST"><input type="text" id="justification" name="justification" required minlength=5 maxlength=100 pattern="[A-Za-z0-9\\s]+" title="Please enter an alphanumeric justification."><br><br><input type="submit" value="Submit">&nbsp;&nbsp;<input type="button" value="Cancel" onclick="btnCancel()"></form>'
+            } else {
+                document.getElementById("messaging").innerHTML = '<p>If you agree to this additional consent, click the "Agree" button below.</p><p style="text-align: center;"><button onclick="btnAgree()">Agree</button>&nbsp;<button onclick="btnCancel()">Cancel</button>&nbsp;</p>'
+            }
+        </script>    
+    </div>
+</body>
+</html>

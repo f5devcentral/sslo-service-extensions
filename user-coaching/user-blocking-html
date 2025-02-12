@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warning: Page Blocked</title>
+    <style>
+        body {
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to right, #1e3c72, #2a5298, #4f6d91, #6a8ca2); /* Multiple shades of blue */
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .warning-container {
+            text-align: center;
+            padding: 20px;
+            background-color: rgba(255, 0, 0, 0.8);
+            border-radius: 10px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
+            width: 50%;
+        }
+        h1 {
+            margin: 0;
+            font-size: 36px;
+        }
+        p {
+            font-size: 18px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="warning-container">
+        <h1>Warning</h1>
+        <p>$receive_msg</p>
+    </div>
+</body>
+</html>

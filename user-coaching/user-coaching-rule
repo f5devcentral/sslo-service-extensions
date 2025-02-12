@@ -1,0 +1,142 @@
+when RULE_INIT {
+    
+    ## ===========================================
+    ## BLOCKING CATEGORIES: Use this array to include any URL categories to trigger a blocking event.
+    ## Note that blocking matches take precedence over coaching matches.
+    ## Use the following TMSH command on BIG-IP to find the list of
+    ## subscription categories:
+    ##   tmsh list sys url-db url-category |grep "sys url-db url-category " |awk -F" " '{print $4}'
+    ## ===========================================
+    set static::BLOCKING_CATEGORIES {
+        "/Common/Information_Technology"
+        "/Common/Uncategorized"
+        "/Common/Unknown"
+    }
+    
+    ## ===========================================
+    ## COACHING CATEGORIES: Use this array to include any URL categories to trigger a user coaching event. 
+    ## Use the following TMSH command on BIG-IP to find the list of
+    ## subscription categories:
+    ##   tmsh list sys url-db url-category |grep "sys url-db url-category " |awk -F" " '{print $4}'
+    ## ===========================================
+    set static::COACHING_CATEGORIES {
+        "/Common/Generative_AI"
+        "/Common/Generative_AI_-_Text_&_Code"
+        "/Common/Generative_AI_-_Conversation"
+        "/Common/Generative_AI_-_Multimedia"
+    }
+    
+    ## ===========================================
+    ## CATEGORY TYPE: Use this option to indicate the type of category to use ("subscription" or "custom_only").
+    ## ===========================================
+    set static::CATEGORY_TYPE "subscription"
+    
+    ## ===========================================
+    ## SESSION TIMER: Use this value to define the timeout value for the user session table entry (in seconds)
+    ## ===========================================
+    set static::SESSION_TIMER 15
+
+    ## ===========================================
+    ## BLOCKING MESSAGE: Use this string to indicate the message that will appear on the blocking page.
+    ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
+    ## ===========================================
+    set static::BLOCKING_MESSAGE {
+        You appear to be requesting a site <b>(THISHOST)</b> that is expressly prohibited via corporate policy. 
+        This request has been logged.
+    }
+    
+    ## ===========================================
+    ## COACHING MESSAGE: Use this string to indicate the message that will appear on the coaching page.
+    ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
+    ## ===========================================
+    set static::COACHING_MESSAGE {
+        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. 
+        By accessing this site you consent to additional enterprise security controls.
+    }
+
+    ## ===========================================
+    ## JUSTIFICATION_LOGGING: Use this option to require a justification in the coaching page. Enter any value 
+    ## in the string to enable a justification form post in the coaching page.
+    ## ===========================================
+    set static::JUSTIFICATION_LOGGING ""
+
+    ## ===========================================
+    ## LOG ENABLED: Use this Boolean option to enable/disable logging of coaching page access
+    ## ===========================================
+    set static::LOG_ENABLED 1
+
+}
+
+proc JUSTIFICATION { data host } {
+    ## Set up message content
+    set now [clock seconds]
+    set timestr [clock format $now -format "%Y-%m-%d %H:%M:%S"]
+    set usermsg "ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${data}"
+
+    ## Set up log output
+    log -noname local0. $usermsg
+}
+
+when HTTP_REQUEST priority 10 {
+    ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
+    sharedvar ctx
+
+    ## Coaching return handler
+    if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
+        switch -glob [HTTP::query] {
+            "uri=*" {
+                HTTP::collect [HTTP::payload length]
+            }
+            default {
+                HTTP::respond 500
+            }
+        }
+    
+    ## BLOCKING lookup for subscription categories
+    } elseif { ($static::CATEGORY_TYPE eq "subscription") &&
+        ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" request_default -ip [IP::local_addr]] " " 1]] >= 0) } {
+        set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
+        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]]
+        
+    ## BLOCKING lookup for custom categories
+    } elseif { ($static::CATEGORY_TYPE eq "custom_only") &&
+        ([lsearch -exact $static::BLOCKING_CATEGORIES  [CATEGORY::lookup "https://[HTTP::host]/" custom]] >= 0) } {
+        set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
+        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]]
+        
+    ## Coaching requires TLS/HTTPS so return if JA4 fingerprint is missing
+    } elseif { ![info exists ctx(ja4)] } {
+        return
+        
+    ## COACHING lookup for subscription categories
+    } elseif { ($static::CATEGORY_TYPE eq "subscription") && 
+        ([lsearch -exact $static::COACHING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" request_default -ip [IP::local_addr]] " " 1]] >= 0) &&
+        ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
+        set receive_host [HTTP::host]
+        set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
+        set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
+        if { $static::JUSTIFICATION_LOGGING ne "" } { set receive_justify "enabled" } else { set receive_justify "" }
+        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
+
+    ## COACHING lookup for custom categories
+    } elseif { ($static::CATEGORY_TYPE eq "custom_only") && 
+        ([lsearch -exact $static::COACHING_CATEGORIES  [CATEGORY::lookup "https://[HTTP::host]/" custom]] >= 0) &&
+        ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
+        set receive_host [HTTP::host]
+        set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
+        set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
+        if { $static::JUSTIFICATION_LOGGING ne "" } { set receive_justify "enabled" } else { set receive_justify "" }
+        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
+    }
+}
+## COACHING return handler
+when HTTP_REQUEST_DATA {
+    if { [HTTP::method] eq "POST" } {
+        if { $static::LOG_ENABLED } { call JUSTIFICATION [HTTP::payload] [HTTP::host] }
+    } else {
+        if { $static::LOG_ENABLED } { call JUSTIFICATION "" [HTTP::host] }
+    }
+    table set "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}" 1 ${static::SESSION_TIMER} indef
+    set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
+    HTTP::respond 302 Location "https://${redir}"
+}
