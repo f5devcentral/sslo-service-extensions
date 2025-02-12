@@ -1,1 +1,7 @@
-# sslo-service-extensions
+# SSL Orchestrator Service Extensions
+
+Service extensions are a new programmable capability in the SSL Orchestrator service chain (as of BIG-IP 17.0) that allow for customizable behaviors on decrypted HTTP traffic directly from within the service chain. Service extensions invoke a new *internal* service type in SSL Orchestrator that performs its functions directly within an iRule. This iRule can reasonably do anything from inject HTTP headers, return a coaching/blocking page, and also communicate with external services. Below are a list of currently defined service extensions.
+
+* **Office 365 Tenant Restrictions** - Tenant Restrictions implements an HTTP header injection function to enable organizations to control their users’ access to company-only Office 365 resources, while blocking access to personal/non-company Office 365 assets. This feature allows organizations to prevent a significant data exfiltration vector. Tenant Restriction is implemented in SSL Orchestrator as a service in the service chain. For additional details on this *built-in* service extension, please see: [Implementing Office 365 Tenant Restrictions](https://clouddocs.f5.com/sslo-deployment-guide/sslo-10/chapter4/page4.14.html)
+
+* **User Coaching** - User coaching is an inline function intended to *coach* users away from (potentially) harmful applications. This SSL Orchestrator service extension is invoked at some event (ex. a user accessing a Generative AI tool, based on URL category match) and generates a coaching page that supports simple acknowledgement, justification input, and event logging. The utility also supports a customizable blocking page function.
