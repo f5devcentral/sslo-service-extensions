@@ -1,3 +1,8 @@
+## SSL Orchestrator Service Extension - User Coaching
+## Version: 1.0
+## Date: 2025-02-12
+## Author: Kevin Stewart, F5 Networks
+
 when RULE_INIT {
     
     ## ===========================================
