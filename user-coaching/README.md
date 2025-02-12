@@ -7,7 +7,7 @@ Requires:
 To implement via installer:
 1. Run the following from the BIG-IP shell to get the installer:
   ```bash
-  curl -sk https://raw.githubusercontent.com/kevingstewart/sslo-user-coaching/refs/heads/main/user-coaching-installer.sh -o user-coaching-installer.sh
+  curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-installer.sh -o user-coaching-installer.sh
   chmod +x user-coaching-installer.sh
   ```
 
