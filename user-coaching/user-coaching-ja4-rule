@@ -216,13 +216,14 @@ when CLIENT_DATA priority 40 {
     ## Get the TLS packet type and versions
     if { ! [info exists rlen] } {
         binary scan [TCP::payload] cH4ScH6H4 rtype proto_ver rlen hs_type rilen server_ver
-        #log local0. "rtype ${rtype} proto_ver ${proto_ver} rlen ${rlen} hs_type ${hs_type} rilen ${rilen} server_ver ${server_ver}"
+        catch {
+            #log local0. "rtype ${rtype} proto_ver ${proto_ver} rlen ${rlen} hs_type ${hs_type} rilen ${rilen} server_ver ${server_ver}"
 
-        if { ( ${rtype} == 22 ) and ( ${hs_type} == 1 ) } {
-            #log local0. "Found CLIENT_HELLO"
-            set ja4 [call parseClientHello [TCP::payload] ${rlen} ${server_ver} ${ja4_tprt}]
-            set ctx(ja4) ${ja4}
-
+            if { ( ${rtype} == 22 ) and ( ${hs_type} == 1 ) } {
+                #log local0. "Found CLIENT_HELLO"
+                set ja4 [call parseClientHello [TCP::payload] ${rlen} ${server_ver} ${ja4_tprt}]
+                set ctx(ja4) ${ja4}
+            }
         }
     }
 
