@@ -15,7 +15,6 @@ when RULE_INIT {
     set static::BLOCKING_CATEGORIES {
         "/Common/Uncategorized"
         "/Common/Unknown"
-        "/Common/Information_Technology"
     }
     
     ## ===========================================
@@ -55,7 +54,7 @@ when RULE_INIT {
     ## ===========================================
     ## SESSION TIMER: Use this value to define the JA4 session timeout value for the user session table entry (in seconds) -- default 3600 seconds
     ## ===========================================
-    set static::SESSION_TIMER 15
+    set static::SESSION_TIMER 3600
 
     ## ===========================================
     ## BLOCKING MESSAGE: Use this string to indicate the message that will appear on the blocking page.
