@@ -69,7 +69,7 @@ when RULE_INIT {
     ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
     ## ===========================================
     set static::COACHING_MESSAGE {
-        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. By accessing this site you consent to additional enterprise security controls.
+        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. By accessing this site you consent to additional enterprise security controls. This request will be logged.
     }
 
     ## ===========================================
