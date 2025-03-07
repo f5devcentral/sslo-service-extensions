@@ -1,6 +1,6 @@
 ## SSL Orchestrator Service Extension - User Coaching
-## Version: 1.1
-## Date: 2025-02-14
+## Version: 2.0
+## Date: 2025 Mar 07
 ## Author: Kevin Stewart, F5 Networks
 
 when RULE_INIT {
@@ -15,6 +15,7 @@ when RULE_INIT {
     set static::BLOCKING_CATEGORIES {
         "/Common/Uncategorized"
         "/Common/Unknown"
+        "/Common/Information_Technology"
     }
     
     ## ===========================================
@@ -36,17 +37,32 @@ when RULE_INIT {
     set static::CATEGORY_TYPE "subscription"
     
     ## ===========================================
-    ## SESSION TIMER: Use this value to define the timeout value for the user session table entry (in seconds)
+    ## IDENTIFIER TYPE: Use this option to indicate the type of identifier to use ("ja4" or "cookie").
+    ## The JA4 method creates a local session table of unique identies and requires a JA4 TLS iRule on the -in-t-4/6 interceptoion rule VIP to perform a client TLS fingerprint.
+    ## The cookie method inserts a domain cookie to the client.
     ## ===========================================
-    set static::SESSION_TIMER 3600
+    set static::IDENTIFIER_TYPE "cookie"
+
+    ## ===========================================
+    ## COOKIE IDENT: Create an AES128 key and an arbitrary string here that will be encrypted into the cookie value (for validation) -- if the "cookie" IDENTIFIER_TYPE is used
+    ## If COOKIE_KEY contains an AES key string, the cookie value (COOKIE_IDENT) will transmit encrypted using this key
+    ## If COOKIE_KEY is left empty, the cookie value (COOKIE_IDENT) will transmit unencrypted
+    ## ===========================================
+    # set static::COOKIE_KEY "AES 128 b55c4753cba6adaa0e4ea7640504d9b4"
+    set static::COOKIE_KEY ""
+    set static::COOKIE_IDENT "f5-user-coaching"
+
+    ## ===========================================
+    ## SESSION TIMER: Use this value to define the JA4 session timeout value for the user session table entry (in seconds) -- default 3600 seconds
+    ## ===========================================
+    set static::SESSION_TIMER 15
 
     ## ===========================================
     ## BLOCKING MESSAGE: Use this string to indicate the message that will appear on the blocking page.
     ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
     ## ===========================================
     set static::BLOCKING_MESSAGE {
-        You appear to be requesting a site <b>(THISHOST)</b> that is expressly prohibited via corporate policy. 
-        This request has been logged.
+        You appear to be requesting a site <b>(THISHOST)</b> that is expressly prohibited via corporate policy. This request has been logged.
     }
     
     ## ===========================================
@@ -54,37 +70,71 @@ when RULE_INIT {
     ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
     ## ===========================================
     set static::COACHING_MESSAGE {
-        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. 
-        By accessing this site you consent to additional enterprise security controls.
+        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. By accessing this site you consent to additional enterprise security controls.
     }
 
     ## ===========================================
-    ## JUSTIFICATION_LOGGING: Use this option to require a justification in the coaching page. Enter any value 
-    ## in the string to enable a justification form post in the coaching page.
+    ## REQUIRE JUSTIFICATION: Use this Boolean to require a justification in the coaching page.
     ## ===========================================
-    set static::JUSTIFICATION_LOGGING ""
+    set static::REQUIRE_JUSTIFICATION 0
 
     ## ===========================================
     ## LOG ENABLED: Use this Boolean option to enable/disable logging of coaching page access
     ## ===========================================
     set static::LOG_ENABLED 1
 
+    ## ===========================================
+    ## LOG POOL: Use this to indicate a remote HSL logging pool. Logging (LOG_ENABLED) must be enabled (1)
+    ## ===========================================
+    set static::LOG_POOL ""
+
 }
 
-proc JUSTIFICATION { data host } {
+proc JUSTIFICATION { msg host } {
     ## Set up message content
-    set now [clock seconds]
-    set timestr [clock format $now -format "%Y-%m-%d %H:%M:%S"]
-    set usermsg "ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${data}"
+    set timestr [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
+    set usermsg "ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${msg}"
 
     ## Set up log output
-    log -noname local0. $usermsg
+    if { $static::LOG_POOL ne "" } {
+        ## Log to defined HSL
+        HSL::send ${static::LOG_POOL} "<34>1 [clock format [clock seconds] -gmt 1 -format {%Y-%m-%dT%H:%M:%S.000Z}] $static::tcl_platform(machine) sslo - [TMM::cmp_count] - ${usermsg}"
+    } else {
+        ## Log to local systelo
+        log -noname local0. $usermsg
+    }
 }
 
 when HTTP_REQUEST priority 10 {
     ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
     sharedvar ctx
+    
+    ## Catch and decrypt the f5se_coaching cookie
+    catch {
+        if { [HTTP::cookie exists f5se_coaching] } {
+            if { $static::COOKIE_KEY ne "" } {
+                set tracker_cookie [AES::decrypt ${static::COOKIE_KEY} [b64decode [HTTP::cookie f5se_coaching]]]
+            } else {
+                set tracker_cookie [HTTP::cookie f5se_coaching]
+            }
+        }
+    }
 
+    ## Set category lookup type
+    switch $static::CATEGORY_TYPE {
+        "subscription" { set query_type "request_default" }
+        "custom_only" { set query_type "custom"}
+        "sub_and_custom" { set query_type "request_default_and_custom" }
+        default { set query_type "custom" }
+    }
+
+    ## Set identifier type
+    switch $static::IDENTIFIER_TYPE {
+        "ja4" { set identifier "ja4" }
+        "cookie" { set identifier "cookie" }
+        default { set identifier "cookie" }
+    }
+    
     ## Coaching return handler
     if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
         switch -glob [HTTP::query] {
@@ -96,61 +146,62 @@ when HTTP_REQUEST priority 10 {
             }
         }
     
-    ## BLOCKING lookup for subscription categories
-    } elseif { ($static::CATEGORY_TYPE eq "subscription") &&
-        ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" request_default -ip [IP::local_addr]] " " 1]] >= 0) } {
+    ## BLOCKING lookup: This happens first
+    } elseif { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" ${query_type} -ip [IP::local_addr]] " " 1]] >= 0) } {
         set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]]
+        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]] "Connection" "close"
         
-    ## BLOCKING lookup for custom categories
-    } elseif { ($static::CATEGORY_TYPE eq "custom_only") &&
-        ([lsearch -exact $static::BLOCKING_CATEGORIES  [CATEGORY::lookup "https://[HTTP::host]/" custom]] >= 0) } {
-        set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]]
-        
-    ## Coaching requires TLS/HTTPS so return if JA4 fingerprint is missing
-    } elseif { ![info exists ctx(ja4)] } {
+    ## ERROR check: Coaching requires TLS/HTTPS so return if JA4 fingerprint is missing
+    } elseif { (${identifier} eq "ja4") && (![info exists ctx(ja4)]) } {
+        log local0. "USER COACHING ERROR: JA4 identifier selected but JA4 signature unavailable -- install JA4 iRule to -in-t-4/6 interception rule VIP"
         return
 
-    ## COACHING lookup for subscription and custom categories
-    } elseif { ($static::CATEGORY_TYPE eq "sub_and_custom") && 
-        ([lsearch -exact $static::COACHING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" request_default_and_custom -ip [IP::local_addr]] " " 1]] >= 0) &&
+    ## COACHING lookup with JA4 identifier
+    } elseif { (${identifier} eq "ja4") && 
+        ([lsearch -exact $static::COACHING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" ${query_type} -ip [IP::local_addr]] " " 1]] >= 0) &&
         ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
         set receive_host [HTTP::host]
         set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
         set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-        if { $static::JUSTIFICATION_LOGGING ne "" } { set receive_justify "enabled" } else { set receive_justify "" }
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
+        if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
+        HTTP::respond 200 content [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
 
-    ## COACHING lookup for subscription categories
-    } elseif { ($static::CATEGORY_TYPE eq "subscription") && 
-        ([lsearch -exact $static::COACHING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" request_default -ip [IP::local_addr]] " " 1]] >= 0) &&
-        ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
+    ## COACHING lookup with cookie identifier
+    } elseif { (${identifier} eq "cookie") && 
+        ([lsearch -exact $static::COACHING_CATEGORIES [getfield [CATEGORY::lookup "https://[HTTP::host]/" ${query_type} -ip [IP::local_addr]] " " 1]] >= 0) &&
+        ((![HTTP::cookie exists f5se_coaching]) || (${tracker_cookie} ne ${static::COOKIE_IDENT})) } {
         set receive_host [HTTP::host]
         set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
         set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-        if { $static::JUSTIFICATION_LOGGING ne "" } { set receive_justify "enabled" } else { set receive_justify "" }
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
-
-    ## COACHING lookup for custom categories
-    } elseif { ($static::CATEGORY_TYPE eq "custom_only") && 
-        ([lsearch -exact $static::COACHING_CATEGORIES  [CATEGORY::lookup "https://[HTTP::host]/" custom]] >= 0) &&
-        ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
-        set receive_host [HTTP::host]
-        set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
-        set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-        if { $static::JUSTIFICATION_LOGGING ne "" } { set receive_justify "enabled" } else { set receive_justify "" }
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
+        if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
+        HTTP::respond 200 content [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
     }
 }
 ## COACHING return handler
 when HTTP_REQUEST_DATA {
-    if { [HTTP::method] eq "POST" } {
+    ## Send to logger based on GET or POST data
+    if { ([HTTP::uri] starts_with "/f5_handler_coaching") && ([HTTP::method] eq "POST") } {
         if { $static::LOG_ENABLED } { call JUSTIFICATION [HTTP::payload] [HTTP::host] }
     } else {
         if { $static::LOG_ENABLED } { call JUSTIFICATION "" [HTTP::host] }
     }
-    table set "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}" 1 ${static::SESSION_TIMER} indef
-    set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
-    HTTP::respond 302 Location "https://${redir}"
+
+    ## Set persisence based on ja4 fingerprint or domain cookie
+    if { ${identifier} eq "ja4" } {
+        ## The JA4 option manages state with a local session table
+        table set "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}" 1 ${static::SESSION_TIMER} indef
+        set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
+        HTTP::respond 302 Location "https://${redir}"
+    
+    } elseif { ${identifier} eq "cookie" } {
+        ## The cookie option manages state with a domain cookie sent to the client (optionally encrypted)
+        set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
+        if { $static::COOKIE_KEY ne "" } {
+            set cookie_val [b64encode [AES::encrypt ${static::COOKIE_KEY} ${static::COOKIE_IDENT}]]
+        } else {
+            set cookie_val ${static::COOKIE_IDENT}
+        }
+        set cookie [format "%s=%s; path=/; domain=%s" "f5se_coaching" "${cookie_val}" "[domain [HTTP::host] 2]"]
+        HTTP::respond 302 Location "https://${redir}" "Set-Cookie" ${cookie}
+    }
 }
