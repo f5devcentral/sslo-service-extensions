@@ -1,6 +1,6 @@
 # SSL Orchestrator User Coaching
 
-User coaching is an F5 SSL Orchestrator service extension function intended to either block or coach users away from (potentially) harmful applications. This SSL Orchestrator service extension is invoked at some event (ex. a user accessing a Generative AI tool, based on URL category match) and generates a coaching page that supports simple acknowledgement, justification input, and event logging.
+User coaching is an F5 SSL Orchestrator **service extension** function intended to either block or coach users away from (potentially) harmful applications. This SSL Orchestrator service extension is invoked at some event (ex. a user accessing a Generative AI tool, based on URL category match) and generates a coaching page that supports simple acknowledgement, justification input, and event logging.
 
 Requires:
 * BIG-IP SSL Orchestrator 17.1.x (SSLO 11.1+)
