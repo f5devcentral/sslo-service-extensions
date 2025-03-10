@@ -4,7 +4,7 @@ if [[ -z "${BIGUSER}" ]]
 then
     echo 
     echo "The user:pass must be set in an environment variable. Exiting."
-    echo "   export BIGUSER 'admin:password'"
+    echo "   export BIGUSER='admin:password'"
     echo 
     exit 1
 fi
