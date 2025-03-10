@@ -157,6 +157,7 @@ when HTTP_REQUEST priority 10 {
     ## BLOCKING lookup: This happens first
     } elseif { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
         set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
+        if { $static::LOG_ENABLED } { call JUSTIFICATION "Request Blocked" [HTTP::host] }
         HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]] "Connection" "close"
     
     ## COACHING lookup with cookie identifier"
