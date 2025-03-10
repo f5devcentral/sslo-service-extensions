@@ -22,8 +22,8 @@
   * "sub_and_custom": Search both subscription and custom categories
  
 * **Identifier Type**: Use one of the following options in the static::IDENTIFIER_TYPE value:
-  * "cookie": Use this option to inject a domain cookie into the client browser for user-agent uniqueness.
-  * "ja4": Use this option to maintain a local session table with source ip + domain host + ja4 TLS fingerprint.
+  * "cookie": Use this option to inject a domain cookie into the client browser for user-agent uniqueness. The cookie identifier places the burden of session uniqueness on the client user-agent. It will inject a domain cookie to the browser for each domain that matches a coaching URL category.
+  * "ja4": Use this option to maintain a local session table with source ip + domain host + ja4 TLS fingerprint. The ja4 identifier places the burden of session uniqueness on the BIG-IP. It will create a session table entry for client IP + domain hostname + JA4 TS fingerprint, for each domain that matches a coaching URL category. This option is only available for HTTPS URLs.
 
 * **Cookie Key and Cookie Ident**: If using the cookie identifier type, the static::COOKIE_IDENT contains the value for the f5se_coaching cookie sent to the browser. If an AES 128-bit key string is applied to the static::COOKIE_KEY value, the cookie value will be optionally AES encrypted.
 
