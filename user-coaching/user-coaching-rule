@@ -86,7 +86,6 @@ when RULE_INIT {
     ## LOG POOL: Use this to indicate a remote HSL logging pool. Logging (LOG_ENABLED) must be enabled (1)
     ## ===========================================
     set static::LOG_POOL ""
-
 }
 
 proc JUSTIFICATION { msg host } {
