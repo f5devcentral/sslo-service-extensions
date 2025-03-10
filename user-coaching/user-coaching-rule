@@ -4,7 +4,6 @@
 ## Author: Kevin Stewart, F5 Networks
 
 when RULE_INIT {
-    
     ## ===========================================
     ## BLOCKING CATEGORIES: Use this array to include any URL categories to trigger a blocking event.
     ## Note that blocking matches take precedence over coaching matches.
