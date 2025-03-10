@@ -4,6 +4,7 @@
 ## Author: Kevin Stewart, F5 Networks
 
 when RULE_INIT {
+    
     ## ===========================================
     ## BLOCKING CATEGORIES: Use this array to include any URL categories to trigger a blocking event.
     ## Note that blocking matches take precedence over coaching matches.
@@ -85,21 +86,31 @@ when RULE_INIT {
     ## ===========================================
     ## LOG POOL: Use this to indicate a remote HSL logging pool. Logging (LOG_ENABLED) must be enabled (1)
     ## ===========================================
+    # set static::LOG_POOL "/Common/my_syslog_pool"
     set static::LOG_POOL ""
+
 }
 
-proc JUSTIFICATION { msg host } {
+proc JUSTIFICATION { msg host hsl } {
     ## Set up message content
     set timestr [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
     set usermsg "ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${msg}"
 
     ## Set up log output
-    if { $static::LOG_POOL ne "" } {
+    if { $hsl ne "" } {
         ## Log to defined HSL
-        HSL::send ${static::LOG_POOL} "<34>1 [clock format [clock seconds] -gmt 1 -format {%Y-%m-%dT%H:%M:%S.000Z}] $static::tcl_platform(machine) sslo - [TMM::cmp_count] - ${usermsg}"
+        HSL::send ${hsl} "<134>1 [clock format [clock seconds] -gmt 1 -format {%Y-%m-%dT%H:%M:%S.000Z}] $static::tcl_platform(machine) sslo - [TMM::cmp_count] - ${usermsg}"
     } else {
-        ## Log to local systelo
+        ## Log to local syslog
         log -noname local0. $usermsg
+    }
+}
+
+when CLIENT_ACCEPTED {
+    if { ($static::LOG_ENABLED) && ($static::LOG_POOL ne "") } {
+        set hsl [HSL::open -proto UDP -pool $static::LOG_POOL]
+    } else {
+        set hsl ""
     }
 }
 
@@ -157,7 +168,7 @@ when HTTP_REQUEST priority 10 {
     ## BLOCKING lookup: This happens first
     } elseif { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
         set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
-        if { $static::LOG_ENABLED } { call JUSTIFICATION "Request Blocked" [HTTP::host] }
+        if { $static::LOG_ENABLED } { call JUSTIFICATION "Request Blocked" [HTTP::host] ${hsl} }
         HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]] "Connection" "close"
     
     ## COACHING lookup with cookie identifier"
@@ -190,9 +201,9 @@ when HTTP_REQUEST priority 10 {
 when HTTP_REQUEST_DATA {
     ## Send to logger based on GET or POST data
     if { ([HTTP::uri] starts_with "/f5_handler_coaching") && ([HTTP::method] eq "POST") } {
-        if { $static::LOG_ENABLED } { call JUSTIFICATION [HTTP::payload] [HTTP::host] }
+        if { $static::LOG_ENABLED } { call JUSTIFICATION [HTTP::payload] [HTTP::host] ${hsl} }
     } else {
-        if { $static::LOG_ENABLED } { call JUSTIFICATION "" [HTTP::host] }
+        if { $static::LOG_ENABLED } { call JUSTIFICATION "" [HTTP::host] ${hsl} }
     }
 
     ## Set persisence based on ja4 fingerprint or domain cookie
