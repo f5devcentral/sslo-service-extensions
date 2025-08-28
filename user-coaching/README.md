@@ -100,3 +100,6 @@ In the event that the installer cannot be used to create all of the objects, ple
 
 ![sslo-user-coaching-justification-sample](https://github.com/user-attachments/assets/7ac81fb9-6faa-418e-a956-a304cf4791ae)
 
+**Samples from the sample folder**:
+![user-coaching-sample-extra-1](https://github.com/user-attachments/assets/816712fb-049b-4db6-bb74-fd088d723cac)
+![user-coaching-sample-extra-2](https://github.com/user-attachments/assets/419e8ce2-d780-4f16-b3fb-50db569852b7)
