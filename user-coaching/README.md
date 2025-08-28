@@ -6,6 +6,13 @@ Requires:
 * BIG-IP SSL Orchestrator 17.1.x (SSLO 11.1+)
 * URLDB subscription -and/or- custom URL category
 
+----
+
+### What is User Coaching?
+User Coaching notifies and "coaches" a user when they attempt to access something that may violate local security policy. Some things can be blocked, but it's often useful to coach but then still allow access. For example, enterprise policy may allow access to external generative AI tools, again, like ChatGPT, Copilot, etc., but you want users to be aware that they're treading into potentially dangerous territory. In most cases, when the user sees the coaching page, they'll head back to safer ground knowing that additional scrutiny will be applied if going forward despite the warning.
+
+------
+
 ### To implement via installer:
 1. Run the following from the BIG-IP shell to get the installer:
   ```bash
