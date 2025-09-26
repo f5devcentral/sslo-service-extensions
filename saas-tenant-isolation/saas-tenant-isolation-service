@@ -33,8 +33,8 @@
               },
               "iRuleList": [
                 {
-                  "name": "/Common/saas-tenant-isolation",
-                  "value": "/Common/saas-tenant-isolation"
+                  "name": "/Common/saas-tenant-isolation-rule",
+                  "value": "/Common/saas-tenant-isolation-rule"
                 }
               ]
             },
