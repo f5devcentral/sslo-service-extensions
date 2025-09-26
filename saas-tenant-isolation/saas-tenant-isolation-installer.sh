@@ -40,12 +40,12 @@ with open(output_filename, "w") as f:
     f.write(one_line)
 EOF
 
-## Install saas-tenant-isolation iRule
-echo "..Creating the saas-tenant-isolation-rule iRule"
-curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/saas-tenant-isolation/saas-tenant-isolation-rule" -o saas-tenant-isolation-rule.in
-python3 rule-converter.py saas-tenant-isolation-rule.in
-rule=$(cat saas-tenant-isolation-rule.out)
-data="{\"name\":\"saas-tenant-isolation-rule\",\"apiAnonymous\":\"${rule}\"}"
+## Install saas-tenant iRule
+echo "..Creating the saas-tenant-rule iRule"
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/saas-tenant-isolation/saas-tenant-isolation-rule" -o saas-tenant-rule.in
+python3 rule-converter.py saas-tenant-rule.in
+rule=$(cat saas-tenant-rule.out)
+data="{\"name\":\"saas-tenant-rule\",\"apiAnonymous\":\"${rule}\"}"
 curl -sk \
 -u ${BIGUSER} \
 -H "Content-Type: application/json" \
@@ -73,7 +73,7 @@ curl -sk \
 -u ${BIGUSER} \
 -H "Content-Type: application/json" \
 -X PATCH \
--d '{"rules":["/Common/saas-tenant-isolation-rule"]}' \
+-d '{"rules":["/Common/saas-tenant-rule"]}' \
 https://localhost/mgmt/tm/ltm/virtual/ssloS_F5_SaaS-Tenant-Isolation.app~ssloS_F5_SaaS-Tenant-Isolation-t-4 -o /dev/null
 
 
