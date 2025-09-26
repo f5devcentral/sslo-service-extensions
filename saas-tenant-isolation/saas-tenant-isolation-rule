@@ -1,0 +1,241 @@
+## SSL Orchestrator Service Extension - SaaS Tenant Isolation
+## Version: 1.0
+## Date: 2025 Sep 26
+## Author: Kevin Stewart, F5 Networks
+
+when RULE_INIT {
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_OFFICE365_V1: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_OFFICE365_V1_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/tenant-restrictions
+    ## ===========================================
+    set static::USE_OFFICE365_V1 0
+    array set static::SAAS_OFFICE365_V1_HEADERS {
+        "Restrict-Access-To-Tenants" "enter-value-here"
+        "Restrict-Access-Context" "enter-value-here"
+        "sec-Restrict-Tenant-Access-Policy" "restrict-msa"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_OFFICE365_V2: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_OFFICE365_V2_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://learn.microsoft.com/en-us/entra/external-id/tenant-restrictions-v2
+    ## ===========================================
+    set static::USE_OFFICE365_V2 0
+    array set static::SAAS_OFFICE365_V2_HEADERS {
+        "Restrict-Access-Context" "enter-value-here"
+        "sec-Restrict-Tenant-Access-Policy" "<Entra tenant ID>:<object policy ID for cross-tenant access policy>"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_WEBEX: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_WEBEX_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://help.webex.com/en-us/article/m0jby2/Configure-a-list-of-allowed-domains-to-access-Webex-while-on-your-corporatenetwork
+    ## ===========================================
+    set static::USE_WEBEX 0
+    array set static::SAAS_WEBEX_HEADERS {
+        "CiscoSpark-Allowed-Domains" "enter-value-here"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_GSUITE: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_GSUITE_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://support.google.com/a/answer/1668854?hl=en
+    ## ===========================================
+    set static::USE_GSUITE 0
+    array set static::SAAS_GSUITE_HEADERS {
+        "X-GoogApps-Allowed-Domains" "enter-value-here"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_DROPBOX: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_DROPBOX_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://help.dropbox.com/security/network-control
+    ## ===========================================
+    set static::USE_DROPBOX 0
+    array set static::SAAS_DROPBOX_HEADERS {
+        "X-Dropbox-allowed-Team-Ids" "enter-value-here"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_YOUTUBE: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_YOUTUBE_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://support.google.com/a/answer/6214622?hl=en#zippy=%2Coption-http-headers
+    ## ===========================================
+    set static::USE_YOUTUBE 0
+    array set static::SAAS_YOUTUBE_HEADERS {
+        "YouTube-Restrict" "Strict"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_SLACK: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_SLACK_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://slack.com/intl/en-in/help/articles/360024821873-Approve-Slack-workspaces-for-your-network
+    ## ===========================================
+    set static::USE_SLACK 0
+    array set static::SAAS_SLACK_HEADERS {
+        "X-Slack-Allowed-Workspaces-Requester" "enter-value-here"
+        "X-Slack-Allowed-Workspaces" "enter-value-here"
+    }
+    
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_ZOOOM: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_ZOOM_HEADERS: Populate the header values required for your organization
+    ##  Ref: 
+    ## ===========================================
+    set static::USE_ZOOM 0
+    array set static::SAAS_ZOOM_HEADERS {
+        "X-ZoomApps-Policy" "enter-value-here"
+    }
+    
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_GITHUB: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_GITHUB_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://docs.github.com/en/enterprise-cloud@latest/admin/configuring-settings/hardening-security-for-your-enterprise/restricting-access-to-githubcom-using-a-corporate-proxy
+    ## ===========================================
+    set static::USE_GITHUB 0
+    array set static::SAAS_GITHUB_HEADERS {
+        "sec-GitHub-allowed-enterprise" "enter-value-here"
+    }
+    
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_CHATGPT: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_CHATGPT_HEADERS: Populate the header values required for your organization
+    ##  Ref: https://help.openai.com/en/articles/8798577-how-to-manage-your-chatgpt-business-workspace
+    ## ===========================================
+    set static::USE_CHATGPT 0
+    array set static::SAAS_CHATGPT_HEADERS {
+        "ChatGPT-Allowed-Workspace-Id" "enter-value-here"
+    }
+
+    ## ===========================================
+    ## User-Defined Settings
+    ##  USE_TESTING: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_TESTING_HEADERS: Populate the header values required for your organization
+    ##  Testing: The URL for this is pre-populated for httpbin.org
+    ## ===========================================
+    set static::USE_TESTING 1
+    array set static::SAAS_TESTING_HEADERS {
+        "X-Test-Header-1" "test-value-a"
+        "X-Test-Header-2" "test-value-b"
+    }
+}
+
+
+
+
+when HTTP_REQUEST {
+    if { $static::USE_OFFICE365_V1 } {
+        switch -glob [string tolower [HTTP::host]] {
+            "login.microsoftonline.com" -
+            "login.microsoft.com" -
+            "login.windows.net" - 
+            "login.live.com" {
+                foreach {x y} [array get static::SAAS_OFFICE365_V1_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_OFFICE365_V2 } {
+        switch -glob [string tolower [HTTP::host]] {
+            "login.microsoftonline.com" -
+            "login.microsoft.com" -
+            "login.windows.net" - 
+            "login.live.com" {
+                foreach {x y} [array get static::SAAS_OFFICE365_V2_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_WEBEX } {
+        switch -glob [string tolower [HTTP::host]] {
+            "identity.webex.com" -
+            "identity-eu.webex.com" -
+            "idbroker.webex.com" -
+            "idbroker-secondary.webex.com" -
+            "idbroker-b-us.webex.com" -
+            "idbroker-eu.webex.com" -
+            "atlas-a.wbx2.com"  {
+                foreach {x y} [array get static::SAAS_WEBEX_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_GSUITE } {
+        switch -glob [string tolower [HTTP::host]] {
+            "*.google.com" -
+            "*.googleusercontent.com" -
+            "*.gstatic.com" {
+                foreach {x y} [array get static::SAAS_GSUITE_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_DROPBOX } {
+        switch -glob [string tolower [HTTP::host]] {
+            "dropbox.com" -
+            "*.dropbox.com" {
+                foreach {x y} [array get static::SAAS_DROPBOX_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_YOUTUBE } {
+        switch -glob [string tolower [HTTP::host]] {
+            "www.youtube.com" -
+            "m.youtube.com" -
+            "youtubei.googleapis.com" -
+            "youtube.googleapis.com" -
+            "www.youtube-nocookie.com" {
+                foreach {x y} [array get static::SAAS_YOUTUBE_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        } 
+    }
+    if { $static::USE_SLACK } {
+        switch -glob [string tolower [HTTP::host]] {
+            "slack.com" -
+            "*.slack.com" {
+                foreach {x y} [array get static::SAAS_SLACK_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_ZOOM } {
+        switch -glob [string tolower [HTTP::host]] {
+            "zoom.com" -
+            "*.zoom.com" {
+                foreach {x y} [array get static::SAAS_ZOOM_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_GITHUB } {
+        switch -glob [string tolower [HTTP::host]] {
+            "github.com" -
+            "api.github.com" -
+            "*.githubcopilot.com" {
+                foreach {x y} [array get static::SAAS_TESTING_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_CHATGPT } {
+        switch -glob [string tolower [HTTP::host]] {
+            "chat.openai.com" -
+            "*.openai.com" {
+                foreach {x y} [array get static::SAAS_TESTING_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+    if { $static::USE_TESTING } {
+        switch -glob [string tolower [HTTP::host]] {
+            "httpbin.org" -
+            "*.httpbin.org" {
+                foreach {x y} [array get static::SAAS_TESTING_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            }
+        }
+    }
+}
