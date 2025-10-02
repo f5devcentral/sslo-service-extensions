@@ -43,13 +43,16 @@ when RULE_INIT {
 
     ## ===========================================
     ## User-Defined Settings
-    ##  USE_GSUITE: Use this Boolean to enable tenant isolation for each SaaS utility
-    ##  SAAS_GSUITE_HEADERS: Populate the header values required for your organization
+    ##  USE_GCLOUD: Use this Boolean to enable tenant isolation for each SaaS utility
+    ##  SAAS_GCLOUD_HEADERS: Populate the header values required for your organization
     ##  Ref: https://support.google.com/a/answer/1668854?hl=en
+    ##  Ref: https://cloud.google.com/blog/products/identity-security/introducing-organization-restrictions-a-new-way-to-keep-threat-actors-out/
+    ##  Ref: https://cloud.google.com/resource-manager/docs/organization-restrictions/configure-organization-restrictions
+    ##  Ref: https://community.f5.com/kb/technicalarticles/ssl-orchestrator-advanced-use-cases-enabling-gcloud-organization-restrictions/313600
     ## ===========================================
-    set static::USE_GSUITE 0
-    array set static::SAAS_GSUITE_HEADERS {
-        "X-GoogApps-Allowed-Domains" "enter-value-here"
+    set static::USE_GCLOUD 0
+    array set static::SAAS_GCLOUD_HEADERS {
+        "X-GoogApps-Allowed-Resources" "enter-value-here"
     }
 
     ## ===========================================
@@ -169,12 +172,17 @@ when HTTP_REQUEST {
             }
         }
     }
-    if { $static::USE_GSUITE } {
+    if { $static::USE_GCLOUD } {
         switch -glob [string tolower [HTTP::host]] {
             "*.google.com" -
-            "*.googleusercontent.com" -
-            "*.gstatic.com" {
-                foreach {x y} [array get static::SAAS_GSUITE_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
+            "*.googleapis.com" -
+            "*.gcr.io" -
+            "*.pkg.dev" -
+            "*.cloudfunctions.net" -
+            "*.run.app" -
+            "*.tunnel.cloudproxy.app" -
+            "*.datafusion.googleusercontent.com" {
+                foreach {x y} [array get static::SAAS_GCLOUD_HEADERS] { HTTP::header remove $x ; HTTP::header insert $x $y }
             }
         }
     }
