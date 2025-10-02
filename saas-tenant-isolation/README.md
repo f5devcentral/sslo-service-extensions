@@ -5,7 +5,7 @@ SaaS Tenant Isolation is an F5 SSL Orchestrator **service extension** function f
 * Office365 Tenant Restrictions v1
 * Office365 Tenant Restrictions v2
 * Webex
-* Google GSuite
+* Google GCloud
 * Dropbox
 * Youtube
 * Slack
