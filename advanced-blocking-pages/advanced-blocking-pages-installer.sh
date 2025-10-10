@@ -64,6 +64,43 @@ curl -sk \
 -d "${data}" \
 https://localhost/mgmt/tm/ltm/rule -o /dev/null
 
+
+## Create iFile System object (advanced-blocking-pages-html)
+echo "..Creating the iFile system object for the advanced-blocking-pages-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name": "user-coaching-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-html"}' \
+https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
+
+# ## Create iFile LTM object (user-coaching-html)
+echo "..Creating the iFile LTM object for the user-coaching-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name":"user-coaching-html", "file-name": "user-coaching-html"}' \
+https://localhost/mgmt/tm/ltm/ifile -o /dev/null
+
+## Create iFile System object (user-blocking-html)
+echo "..Creating the iFile system object for the user-blocking-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name": "user-blocking-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-blocking-html"}' \
+https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
+
+# ## Create iFile LTM object (user-blocking-html)
+echo "..Creating the iFile LTM object for the user-blocking-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name":"user-blocking-html", "file-name": "user-blocking-html"}' \
+https://localhost/mgmt/tm/ltm/ifile -o /dev/null
+
+
+
+
+
 ## Create SSLO Advanced Blocking Pages Inspection Service
 echo "..Creating the SSLO advanced-blocking-pages inspection service"
 curl -sk \
