@@ -1,0 +1,33 @@
+## SSL Orchestrator Service Extension - Advanced Blocking Pages
+## Version: 1.0
+## Date: 2025 Oct 10
+## Author: Kevin Stewart, F5 Networks
+
+when RULE_INIT {
+    ## ===========================================
+    ## User-Defined Setting :: GLOBAL BLOCK: Use this Boolean to indicate blocking strategy:
+    ##  0 (off): The iRule logic below determines the blocking behavior, where the blocking service can be placed in all service chains.
+    ##  1  (on): The SSLO policy inserts a static blocking action, where the blocking service is applied to a blocking service chain.
+    ##
+    ## User-Defined Setting :: GLOBAL BLOCK MESSAGE: Send this string to the iFile for any additional messaging on the page.
+    ## ===========================================
+    set static::GLOBAL_BLOCK 0
+    set static::GLOBAL_BLOCK_MESSAGE "This request has been blocked. If you believe you have reached this page in error, please contact support."
+}
+
+proc GEN_BLOCK_PAGE { msg } {
+    set receive_msg $msg
+    HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get se-blocking-page]] "Connection" "close"
+}
+
+when HTTP_REQUEST {
+    if { $static::GLOBAL_BLOCK } {
+        call GEN_BLOCK_PAGE ${static::GLOBAL_BLOCK_MESSAGE}
+        event disable all   
+    } else {
+        sharedvar ctx
+        if { ( [info exists ctx(tlsverify)] ) and ( $ctx(tlsverify) ne "ok" ) } {
+            call GEN_BLOCK_PAGE "This request has been blocked due to a server side TLS issue: <br /></br>[string toupper $ctx(tlsverify)]"
+        }
+    }
+}
