@@ -1,0 +1,108 @@
+{
+    "name": "sslo_ob_SERVICE_CREATE_ssloS_F5_Advanced-Blocking-Pages",
+    "inputProperties": [
+      {
+        "id": "f5-ssl-orchestrator-operation-context",
+        "type": "JSON",
+        "value": {
+          "operationType": "CREATE",
+          "deploymentType": "SERVICE",
+          "deploymentName": "ssloS_F5_Advanced-Blocking-Pages",
+          "deploymentReference": "",
+          "partition": "Common",
+          "strictness": true
+        }
+      },
+      {
+        "id": "f5-ssl-orchestrator-service",
+        "type": "JSON",
+        "value": [
+          {
+            "name": "ssloS_F5_Advanced-Blocking-Pages",
+            "strictness": false,
+            "customService": {
+              "name": "ssloS_F5_Advanced-Blocking-Pages",
+              "ipFamily": "ipv4",
+              "serviceDownAction": "",
+              "serviceType": "f5-tenant-restrictions",
+              "serviceSpecific": {
+                "restrictAccessToTenant": "F5ABP",
+                "restrictAccessContext": "F5ABP",
+                "subType": "o365",
+                "name": "ssloS_F5_Advanced-Blocking-Pages"
+              },
+              "iRuleList": [
+                {
+                  "name": "/Common/advanced-blocking-pages-rule",
+                  "value": "/Common/advanced-blocking-pages-rule"
+                }
+              ]
+            },
+            "vendorInfo": {
+              "name": "F5 SSLO Advanced Blocking Pages",
+              "product": "",
+              "model": "",
+              "version": ""
+            },
+            "description": "Type: f5-sslo-advanced-blocking-pages",
+            "useTemplate": false,
+            "serviceTemplate": "",
+            "partition": "Common",
+            "previousVersion": "11.0",
+            "version": "11.0"
+          }
+        ]
+      },
+      {
+        "id": "f5-ssl-orchestrator-tls",
+        "type": "JSON",
+        "value": {}
+      },
+      {
+        "id": "f5-ssl-orchestrator-authentication",
+        "type": "JSON",
+        "value": []
+      },
+      {
+        "id": "f5-ssl-orchestrator-service-chain",
+        "type": "JSON",
+        "value": []
+      },
+      {
+        "id": "f5-ssl-orchestrator-policy",
+        "type": "JSON",
+        "value": {}
+      },
+      {
+        "id": "f5-ssl-orchestrator-topology",
+        "type": "JSON",
+        "value": {}
+      },
+      {
+        "id": "f5-ssl-orchestrator-intercept-rule",
+        "type": "JSON",
+        "value": []
+      },
+      {
+        "id": "f5-ssl-orchestrator-network",
+        "type": "JSON",
+        "value": []
+      }
+    ],
+    "configurationProcessorReference": {
+      "link": "https://localhost/mgmt/shared/iapp/processors/f5-iappslx-ssl-orchestrator-gc"
+    },
+    "configProcessorTimeoutSeconds": 120,
+    "statsProcessorTimeoutSeconds": 60,
+    "configProcessorAffinity": {
+      "processorPolicy": "LOCAL",
+      "affinityProcessorReference": {
+        "link": "https://localhost/mgmt/shared/iapp/affinity/local"
+      }
+    },
+    "state": "BINDING",
+    "presentationHtmlReference": {
+      "link": "https://localhost/iapps/f5-iappslx-ssl-orchestrator/sgc/sgcIndex.html"
+    },
+    "operation": "CREATE"
+  }
