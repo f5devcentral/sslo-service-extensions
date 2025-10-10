@@ -1,0 +1,9 @@
+## SSL Orchestrator Service Extension - Advanced Blocking Pages (TLS Verification Rule)
+## Version: 1.0
+## Date: 2025 Oct 10
+## Author: Kevin Stewart, F5 Networks
+
+when SERVERSSL_SERVERCERT {
+    sharedvar ctx
+    set ctx(tlsverify) [X509::verify_cert_error_string [SSL::verify_result]]
+}
