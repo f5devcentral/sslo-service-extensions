@@ -12,6 +12,7 @@ then
     exit 1
 fi
 
+
 ## Create temporary Python converter
 cat > "rule-converter.py" << 'EOF'
 import sys
@@ -40,6 +41,7 @@ with open(output_filename, "w") as f:
     f.write(one_line)
 EOF
 
+
 ## Install advanced-blocking-pages iRule
 echo "..Creating the advanced-blocking-pages-rule iRule"
 curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/advanced-blocking-pages-rule" -o advanced-blocking-pages-rule.in
@@ -51,6 +53,7 @@ curl -sk \
 -H "Content-Type: application/json" \
 -d "${data}" \
 https://localhost/mgmt/tm/ltm/rule -o /dev/null
+
 
 ## Install sslo-tls-verify iRule
 echo "..Creating the sslo-tls-verify-rule iRule"
@@ -70,35 +73,17 @@ echo "..Creating the iFile system object for the advanced-blocking-pages-html"
 curl -sk \
 -u ${BIGUSER} \
 -H "Content-Type: application/json" \
--d '{"name": "user-coaching-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-html"}' \
+-d '{"name": "advanced-blocking-pages-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/advanced-blocking-pages-html"}' \
 https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
 
-# ## Create iFile LTM object (user-coaching-html)
-echo "..Creating the iFile LTM object for the user-coaching-html"
+
+# ## Create iFile LTM object (advanced-blocking-pages-html)
+echo "..Creating the iFile LTM object for the advanced-blocking-pages-html"
 curl -sk \
 -u ${BIGUSER} \
 -H "Content-Type: application/json" \
--d '{"name":"user-coaching-html", "file-name": "user-coaching-html"}' \
+-d '{"name":"advanced-blocking-pages-html", "file-name": "advanced-blocking-pages-html"}' \
 https://localhost/mgmt/tm/ltm/ifile -o /dev/null
-
-## Create iFile System object (user-blocking-html)
-echo "..Creating the iFile system object for the user-blocking-html"
-curl -sk \
--u ${BIGUSER} \
--H "Content-Type: application/json" \
--d '{"name": "user-blocking-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-blocking-html"}' \
-https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
-
-# ## Create iFile LTM object (user-blocking-html)
-echo "..Creating the iFile LTM object for the user-blocking-html"
-curl -sk \
--u ${BIGUSER} \
--H "Content-Type: application/json" \
--d '{"name":"user-blocking-html", "file-name": "user-blocking-html"}' \
-https://localhost/mgmt/tm/ltm/ifile -o /dev/null
-
-
-
 
 
 ## Create SSLO Advanced Blocking Pages Inspection Service
