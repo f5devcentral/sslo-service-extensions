@@ -17,7 +17,7 @@ when RULE_INIT {
 
 proc GEN_BLOCK_PAGE { msg } {
     set receive_msg $msg
-    HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get se-blocking-page]] "Connection" "close"
+    HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get advanced-blocking-pages-html]] "Connection" "close"
 }
 
 when HTTP_REQUEST {
