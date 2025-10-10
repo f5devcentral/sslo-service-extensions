@@ -42,7 +42,7 @@ EOF
 
 ## Install advanced-blocking-pages iRule
 echo "..Creating the advanced-blocking-pages-rule iRule"
-curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/saas-tenant-isolation/saas-tenant-isolation-rule" -o saas-tenant-rule.in
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/advanced-blocking-pages-rule" -o advanced-blocking-pages-rule.in
 python3 rule-converter.py advanced-blocking-pages-rule.in
 rule=$(cat advanced-blocking-pages-rule.out)
 data="{\"name\":\"advanced-blocking-pages-rule\",\"apiAnonymous\":\"${rule}\"}"
@@ -54,7 +54,7 @@ https://localhost/mgmt/tm/ltm/rule -o /dev/null
 
 ## Install sslo-tls-verify iRule
 echo "..Creating the sslo-tls-verify-rule iRule"
-curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/saas-tenant-isolation/saas-tenant-isolation-rule" -o saas-tenant-rule.in
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/sslo-tls-verify-rule" -o sslo-tls-verify-rule.in
 python3 rule-converter.py sslo-tls-verify-rule.in
 rule=$(cat sslo-tls-verify-rule.out)
 data="{\"name\":\"sslo-tls-verify-rule\",\"apiAnonymous\":\"${rule}\"}"
@@ -69,7 +69,7 @@ echo "..Creating the SSLO advanced-blocking-pages inspection service"
 curl -sk \
 -u ${BIGUSER} \
 -H "Content-Type: application/json" \
--d "$(curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/saas-tenant-isolation/saas-tenant-isolation-service)" \
+-d "$(curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/advanced-blocking-pages-service)" \
 https://localhost/mgmt/shared/iapp/blocks -o /dev/null
 
 
@@ -85,7 +85,7 @@ curl -sk \
 -H "Content-Type: application/json" \
 -X PATCH \
 -d '{"rules":["/Common/advanced-blocking-pages-rule"]}' \
-https://localhost/mgmt/tm/ltm/virtual/ssloS_F5_SaaS-Tenant-Isolation.app~ssloS_F5_SaaS-Tenant-Isolation-t-4 -o /dev/null
+https://localhost/mgmt/tm/ltm/virtual/ssloS_F5_Advanced-Blocking-Pages.app~ssloS_F5_Advanced-Blocking-Pages-t-4 -o /dev/null
 
 
 echo "..Cleaning up temporary files"
