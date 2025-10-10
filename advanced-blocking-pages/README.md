@@ -7,7 +7,7 @@ Requires:
 ### To implement via installer:
 1. Run the following from the BIG-IP shell to get the installer:
   ```bash
-  curl -sk https://raw.githubusercontent.com/-----------/advanced-blocking-pages/advanced-blocking-pages-installer.sh -o advanced-blocking-pages-installer.sh
+  curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/advanced-blocking-pages/advanced-blocking-pages-installer.sh -o advanced-blocking-pages-installer.sh
   chmod +x advanced-blocking-pages-installer.sh
   ```
 
