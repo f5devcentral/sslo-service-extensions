@@ -29,7 +29,7 @@ The **advanced-blocking-pages-rule** has a set of editable configuration blocks:
 * **GLOBAL_BLOCK**: <br />Enables or disables a static blocking response.
   * When set to 1 (on), the blocking page service should be added to the end of a blocking service chain.
   * When set to 0 (off), the blocking page will be controlled by iRule logic. While global blocking is appropriate for most scenarios, this iRule option can address special use cases like blocking based on server side certificate validation errors (more on this below).
-* * **GLOBAL_BLOCK_MESSAGE**: <br />When the blocking page (iFile) content includes a placeholder value (more on this below), this string message will be dynamically inserted into the page returned to the browser.
+* **GLOBAL_BLOCK_MESSAGE**: <br />When the blocking page (iFile) content includes a placeholder value (more on this below), this string message will be dynamically inserted into the page returned to the browser.
  
 ------
 ### To customize the blocking page content
