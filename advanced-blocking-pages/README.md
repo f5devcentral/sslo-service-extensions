@@ -27,8 +27,12 @@ Requires:
 ### Customizing functionality
 The **advanced-blocking-pages-rule** has a set of editable configuration blocks:
 * **GLOBAL_BLOCK**: <br />Enables or disables a static blocking response.
-  * When set to 1 (on), the blocking page service should be added to the end of a blocking service chain.
-  * When set to 0 (off), the blocking page will be controlled by iRule logic. While global blocking is appropriate for most scenarios, this iRule option can address special use cases like blocking based on server side certificate validation errors (more on this below).
+  * When set to **1** (on), the blocking page service should be added to the end of a blocking service chain. To do this:
+    * Create the blocking page service.
+    * Update the GLOBAL_BLOCK variable in the iRule to 1.
+    * Create or update an SSL Orchestrator service chain and add this service to the end of the chain.
+    * Create an SSL Orchestrator policy rule that should block traffic. Ensure that the rule action intercepts (decrypts) and sends to the above service chain.
+  * When set to **0** (off), the blocking page will be controlled by iRule logic. While global blocking is appropriate for most scenarios, this iRule option can address special use cases like blocking based on server side certificate validation errors (more on this below). The blocking page service can be applied to any service chain that will receive decrypted HTTP traffic.
 * **GLOBAL_BLOCK_MESSAGE**: <br />When the blocking page (iFile) content includes a placeholder value (more on this below), this string message will be dynamically inserted into the page returned to the browser.
  
 ------
