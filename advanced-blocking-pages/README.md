@@ -24,7 +24,7 @@ Requires:
 4. The installer creates a new inspection service named "ssloS_F5_Advanced-Blocking-Pages". Add this inspection service to any service chain that can receive decrypted HTTP traffic. Service extension services will only trigger on decrypted HTTP, so can be inserted into service chains that may also see TLS bypass traffic (not decrypted). SSL Orchestrator will simply bypass this service for anything that is not decrypted HTTP.
 
 ------
-### To customize functionality
+### Customizing functionality
 The **advanced-blocking-pages-rule** has a set of editable configuration blocks:
 * **GLOBAL_BLOCK**: <br />Enables or disables a static blocking response.
   * When set to 1 (on), the blocking page service should be added to the end of a blocking service chain.
@@ -32,14 +32,45 @@ The **advanced-blocking-pages-rule** has a set of editable configuration blocks:
 * **GLOBAL_BLOCK_MESSAGE**: <br />When the blocking page (iFile) content includes a placeholder value (more on this below), this string message will be dynamically inserted into the page returned to the browser.
  
 ------
-### To customize the blocking page content
+### Customizing the blocking page content
 The blocking page iFile is completely customizable based on your local needs. In the BIG-IP, under System -> File Management -> iFile List, choose a new HTML file, select Overwrite Existing, and select the **se-blocking-page** iFile to replace it. To inject a dynamic message in the page, ensure a **$receive_msg** variable is included. This is implemented in the blocking pages iRule by setting a string value on **receive_msg** variable before calling the GEN_BLOCK_PAGE procedure.
 
+Any images must be base64-encoded into the blocking page. Review the sample pages to see this in use. There are many online tools for converting an image to base64. Also note that large images, and/or multiple images may significantly increase the size of the blocking page.
+
 ------
-### To handle server side certificate errors
+### Handling server side certificate errors
 Handling server side certificate issues requires a few additional steps:
 1. In the SSL Orchestrator UI, edit the topology, go to the **SSL Configuration** page, click the "Show Advanced Setting** link, and then set **Expire Certificate Response** and **Untrusted Certificate Authority** to "mask". The mask option tells SSL Orchestrator to ignore server side certificate issues and forge a good/valid certificate to the client. This is needed in order to present a blocking page. Deploy the changes.
 2. In the SSL Orchestrator UI, navigate to the Interception Rules tab and click to edit the interception rule for this topology. In the **Resources** section, add the **sslo-tlsverify** iRule. Click Save & Next and then deploy the changes. This iRule sits on the topology virtual at SERVERSSL_SERVERCERT and sends the certificate verification code into a context array variable. The blocking page iRule (when GLOBAL_BLOCK is 0) will read this context array variable and trigger the blocking page if the certificate verification code is not 'ok'. It also injects the verification code string into the page.
+
+------
+### Handling custom blocking page triggers
+The included iRule is intentionally sparse to include the two primary blocking page use cases (global blocking and server side certificate validation errors):
+
+```tcl
+when HTTP_REQUEST {
+    if { $static::GLOBAL_BLOCK } {
+        call GEN_BLOCK_PAGE ${static::GLOBAL_BLOCK_MESSAGE}
+        event disable all
+    } else {
+        sharedvar ctx
+        if { ( [info exists ctx(tlsverify)] ) and ( $ctx(tlsverify) ne "ok" ) } {
+            call GEN_BLOCK_PAGE "This request has been blocked due to a server side TLS issue: <br /></br>[string toupper $ctx(tlsverify)]"
+            event disable all
+        }
+    }
+}
+```
+
+To customize this for additional triggers, add iRule logic inside the ```else``` block as required:
+
+```tcl
+if { some-condition } {
+    call GEN_BLOCK_PAGE "message to send into blocking page `receive_msg` variable"
+    event disable all
+}
+```
+
 
 ------
 ### Sample blocking pages
