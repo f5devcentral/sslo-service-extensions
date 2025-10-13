@@ -43,7 +43,8 @@ Handling server side certificate issues requires a few additional steps:
 
 ------
 ### Sample blocking pages
-
+![Sample 1](images/se-adv-blocking-sample-1.png)
+![Sample 2](images/se-adv-blocking-sample-2.png)
 
 
 
