@@ -23,11 +23,12 @@ proc GEN_BLOCK_PAGE { msg } {
 when HTTP_REQUEST {
     if { $static::GLOBAL_BLOCK } {
         call GEN_BLOCK_PAGE ${static::GLOBAL_BLOCK_MESSAGE}
-        event disable all   
+        event disable all
     } else {
         sharedvar ctx
         if { ( [info exists ctx(tlsverify)] ) and ( $ctx(tlsverify) ne "ok" ) } {
             call GEN_BLOCK_PAGE "This request has been blocked due to a server side TLS issue: <br /></br>[string toupper $ctx(tlsverify)]"
+            event disable all
         }
     }
 }
