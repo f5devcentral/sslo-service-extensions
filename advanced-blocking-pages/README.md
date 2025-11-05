@@ -37,7 +37,7 @@ The **advanced-blocking-pages-rule** has a set of editable configuration blocks:
  
 ------
 ### Customizing the blocking page content
-The blocking page iFile is completely customizable based on your local needs. In the BIG-IP, under System -> File Management -> iFile List, choose a new HTML file, select Overwrite Existing, and select the **advanced-blocking-page** iFile to replace it. To inject a dynamic message in the page, ensure a **$receive_msg** variable is included. This is implemented in the blocking pages iRule by setting a string value on **receive_msg** variable before calling the GEN_BLOCK_PAGE procedure.
+The blocking page iFile is completely customizable based on your local needs. In the BIG-IP, under System -> File Management -> iFile List, choose a new HTML file, select Overwrite Existing, and select the **advanced-blocking-pages-html** iFile to replace it. To inject a dynamic message in the page, ensure a **$receive_msg** variable is included. This is implemented in the blocking pages iRule by setting a string value on **receive_msg** variable before calling the GEN_BLOCK_PAGE procedure.
 
 Any images must be base64-encoded into the blocking page. Review the sample pages to see this in use. There are many online tools for converting an image to base64. Also note that large images, and/or multiple images may significantly increase the size of the blocking page.
 
