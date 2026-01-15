@@ -220,8 +220,9 @@ To test the sinkhole action:
 * To test with command line curl, issue the following command, pointing to a URL that is matched by the flagged category:
 
   ```bash
-  curl -vk --doh-url https://cloudflare-dns.com/dns-query https://www.nbc.com
+  curl -vk --doh-insecure --doh-url https://cloudflare-dns.com/dns-query https://www.nbc.com
   ```
+  *Note: The --doh-insecure command requires Curl 1.76.1 and higher*
 
   The result of both tests above should be the "Site Blocked!" page with a certificate forged by SSL Orchestrator. Injecting a static HTML response blocking page is just one option among many. You could, for example, issue a redirect instead of static HTML, and send the client to a more formal "splash page". This redirect could inject additional metadata to provide to the splash page. For example:
 
