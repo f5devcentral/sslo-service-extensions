@@ -217,6 +217,10 @@ To test the sinkhole action:
 * Update the **DOH_SINHOLE_IP4** and/or **DOH_SINKHOLE_IP6** variables in the *doh-guardian-rule* to match the IP address applied to the sinkhole L3 SSL Orchestrator topology.
 * Update the **DOH_SINKHOLE_BY_CATEGORY** variable in the *doh-guardian-rule to match a given category (ex. /Common/Entertainment).
 * To test with a browser, ensure the browser is configured to use DNS-over-HTTPS to an Internet provider (Cloudflare, Google, etc.), then make a request to a site that will match the flagged category (ex. https://www.nbc.com).
+  * For Chrome: Navigate to "chrome://settings/security", then enable the "Use secure DNS" option and select an appropriate DNS provider.
+  * For Firefox: Navigate to Settings -> Provacy & Security
+    * In the "Enable DNS over HTTPS using" section, select "Max Protection", and optionally provide a custom DNS provider (ex. https://cloudflare-dns.com/dns-query)
+    * If the sinkhole IP address is on a local RFC1918 IP address, you may also need to enable this. Navigate to the "about:config" URL, search for "network.trr.allow-rfc1918", and set to "true".
 * To test with command line curl, issue the following command, pointing to a URL that is matched by the flagged category:
 
   ```bash
