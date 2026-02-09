@@ -7,6 +7,8 @@
 #  All rights reserved.
 #  JA4 TLS Client Fingerprinting is Open-Source, Licensed under BSD 3-Clause
 #  For full license text and more details, see the repo root https://github.com/FoxIO-LLC/ja4
+#
+#  Local update version: 20260209-1
 ###############################################################################################
 
 proc parseClientHello { payload rlen ja4_ver ja4_tprt } {
@@ -225,11 +227,11 @@ when CLIENT_DATA priority 40 {
                 set ctx(ja4) ${ja4}
             }
         }
-    }
-
-    # Collect the rest of the record if necessary
-    if { [TCP::payload length] < $rlen } {
-        TCP::collect $rlen
+    } else {
+        # Collect the rest of the record if necessary
+        if { [TCP::payload length] < $rlen } {
+            TCP::collect $rlen
+        }
     }
 
     ## Release the payload
