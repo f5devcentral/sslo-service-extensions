@@ -104,7 +104,7 @@
     <div id="messaging"></div>
     <script>
     if ("$receive_justify" == "enabled") {
-      document.getElementById("messaging").innerHTML = '<div class="msgtext">Please enter a justification below:</div><form action="./f5_handler_coaching?uri=$receive_uri" method="POST"><input type="text" id="justification" name="justification" required minlength=5 maxlength=100 pattern="[A-Za-z0-9\\s]+" title="Please enter an alphanumeric justification."><br><br><input type="submit" class="btn btn--radius-2 btn--blue" value="Submit">&nbsp;&nbsp;<input type="button" class="btn btn--radius-2 btn--blue" value="Cancel" onclick="btnCancel()"></form>'
+      document.getElementById("messaging").innerHTML = '<div class="msgtext">Please enter a justification below:</div><form action="https://$receive_host/f5_handler_coaching?uri=$receive_uri" method="POST"><input type="text" id="justification" name="justification" required minlength=5 maxlength=100 pattern="[A-Za-z0-9\\s]+" title="Please enter an alphanumeric justification."><br><br><input type="submit" class="btn btn--radius-2 btn--blue" value="Submit">&nbsp;&nbsp;<input type="button" class="btn btn--radius-2 btn--blue" value="Cancel" onclick="btnCancel()"></form>'
     } else {
       document.getElementById("messaging").innerHTML = '<div class="msgtext">If you agree to this additional consent, click the "Agree" button below.</div><div class="p-t-15"><button class="btn btn--radius-2 btn--blue" onclick="btnAgree()">Agree</button>&nbsp;&nbsp;<button class="btn btn--radius-2 btn--blue" onclick="btnCancel()">Cancel</button></div>'
     }
