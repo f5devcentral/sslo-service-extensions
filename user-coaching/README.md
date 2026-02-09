@@ -1,5 +1,7 @@
 # SSL Orchestrator User Coaching
 
+#### Last Update: 2026 Feb 09
+
 User coaching is an F5 SSL Orchestrator **service extension** function intended to either block or coach users away from (potentially) harmful applications. This SSL Orchestrator service extension is invoked at some event (ex. a user accessing a Generative AI tool, based on URL category match) and generates a coaching page that supports simple acknowledgement, justification input, and event logging.
 
 Requires:
@@ -30,33 +32,43 @@ User Coaching notifies and "coaches" a user when they attempt to access somethin
   ./user-coaching-installer.sh
   ```
 
-4. Add the "user-coaching-ja4t-rule" iRule to the SSL Orchestrator outbound topology interception rule (if the JA4 IDENTIFIER_TYPE is required - see below). In the SSL Orchestrator, select the Interception Rules tab and then click to edit the "-t-4" (and/or -t-6) Interception Rule. In the Resources section, move the **user-coaching-ja4t-rule** to the Selected box, and then Deploy to save changes.
+4. Add the resulting "ssloS_F5_UC" inspection service in SSLO to a decrypted traffic service chain. The installer creates a new inspection service named "ssloS_F5_UC". Add this inspection service to any service chain that can receive decrypted HTTP traffic. Service extension services will only trigger on decrypted HTTP, so can be inserted into service chains that may also see TLS intercepts traffic. SSL Orchestrator will simply bypass this service for anything that is not decrypted HTTP.
 
-5. Add the resulting "ssloS_F5_UC" inspection service in SSLO to a decrypted traffic service chain. The installer creates a new inspection service named "ssloS_F5_UC". Add this inspection service to any service chain that can receive decrypted HTTP traffic. Service extension services will only trigger on decrypted HTTP, so can be inserted into service chains that may also see TLS intercepts traffic. SSL Orchestrator will simply bypass this service for anything that is not decrypted HTTP.
-
+5. (Optional) By default, persistence is maintained via domain cookies. If the JA4 IDENTIFIER_TYPE is required instead (see below), add the "user-coaching-ja4t-rule" iRule to the SSL Orchestrator outbound topology interception rule. In the SSL Orchestrator, select the Interception Rules tab and then click to edit the "-t-4" (and/or -t-6) Interception Rule. In the Resources section, move the **user-coaching-ja4t-rule** to the Selected box, and then Deploy to save changes.
 
 ------
 ### To customize functionality
 The **user-coaching-rule** iRule has a number of editable settings:
 
 * **BLOCKING_CATEGORIES**: Use this array to include any URL categories (subscription or custom) to trigger a blocking page.
+
 * **COACHING_CATEGORIES**: Use this array to include any URL categories (subscription or custom) to trigger a coaching page.
+
 * **CATEGORY_TYPE**: Set this to either "subscription", "custom_only", or "sub_and_custom" to select the category type(s) to query.
+
 * **IDENTIFIER_TYPE**: Set this to specify either JA4 TLS fingerprint or browser (domain) cookie to maintain user agent persistence.
   * The **ja4** method creates a local session table entry (client IP + domain + ja4 fingerprint) to identify a user/browser session, and requires a JA4
     TLS fingerprint iRule on the "-in-t-4/6" SSL Orchestrator interception rule virtual server. This iRule is created automatically with the installer but
     must be added to the interception rule manually.
   * The **cookie** method maintains user/browser session uniqueness with a domain cookie into the browser for each triggered coaching domain.
+
 * **COOKIE_KEY** and **COOKIE_IDENT**: When the cookie IDENTIFIER_TYPE is used, the COOKIE_IDENT contains the value of the "f5se_coaching" domain cookie sent to the browser. If the COOKIE_KEY contains an AES key string, the f5se_coaching cooking is optionally encrypted with this key.
-* **SESSION_TIMER**: When using the JA4 IDENTIFIER_TYPE, use this value to define the timeout for a coaching page. By default a table entry is created for coaching based on client source address + domain portion of the requested URL + JA4 TLS fingerprint. This creates a token that is unique to the user (by source IP), the requested domain, and the specific browser user agent. The default is 3600 seconds (1 hour) of idle time, with no lifetime set.
+
+* **JA4_SESSION_TIMER**: When using the JA4 IDENTIFIER_TYPE, use this value to define the timeout for a coaching page. By default a table entry is created for coaching based on client source address + domain portion of the requested URL + JA4 TLS fingerprint. This creates a token that is unique to the user (by source IP), the requested domain, and the specific browser user agent. The default is 3600 seconds (1 hour) of idle time, with no lifetime set.
+
 * **BLOCKING_MESSAGE**: Use this string to indicate the message that will appear on the blocking page. This text will be injected into the blocking page dynamically. The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
+
 * **COACHING_MESSAGE**: Use this string to indicate the message that will appear on the coaching page. This text will be injected into the coaching page dynamically. The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
+
 * **REQUIRE_JUSTIFICATION**: Use this Boolean option to enable and require a justification in the coaching page. Enter a 1 to enable a justification form post in the coaching page. The (default) coaching page will add a justification text box that must contain a value to submit the page. That justification text will be inserted into the event log.
+
 * **LOG_ENABLED**: Use this Boolean option to enable/disable logging of coaching page access. A value of 0 disables, a value of 1 enables. In its current state the iRule logs  to local0. in the JUSTIFICATION proc, but that can be updated to point to an HSL and/or other remote logging facility. Logging creates the following message, where "data" is the supplied justification text.
   ```
   ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${data}
   ```
 * **LOG_POOL**: To send logs to a remote Syslog, create an HSL pool and enter that pool name here.
+
+* **EXCLUDE_FILETYPES**: Persistence is controlled at the domain of the requested/origin site, via domain cookie or JA4 fingerprint (ex. *.openai.com), so that any other/future requests to that domain do not get prompted. However, there are situations where a page references objects (i.e., images, scripts, styles, etc.) that are hosted elsewhere, and that elsewhere may also fall into the same coaching category. Or, in the case of cookie persistence, the browser may not pass the cookie when requesting one of these objects. These background object requests don't allow for the user to answer a coaching prompt. To alleviate this issue for background page objects, the EXCLUDE_FILETYPES variable contains a list of known web document file types that the iRule must bypass for coaching actions (Note: this does not apply to blocking actions). Each item is a key and a value, where the key is the file extension (ex. jpg), and the value is an arbitrary string value that indicates the file type (ex. image).
 
 The **user-coaching-html** and **user-blocking-html** iFiles are also completely customizable based on your local needs. In the BIG-IP UI, under System -> File Management -> iFile List, select Import, choose a new HTML file, select Overwrite Existing, and select either the user-coaching-html or user-blocking-html to replace each one.
 
