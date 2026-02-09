@@ -74,7 +74,7 @@ https://localhost/mgmt/tm/ltm/ifile -o /dev/null
 
 ## Install user-coaching iRule
 echo "..Creating the user-coaching-rule iRule"
-curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-html" -o user-coaching-rule.in
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-rule" -o user-coaching-rule.in
 python3 rule-converter.py user-coaching-rule.in
 rule=$(cat user-coaching-rule.out)
 data="{\"name\":\"user-coaching-rule\",\"apiAnonymous\":\"${rule}\"}"
