@@ -1,4 +1,7 @@
 #!/bin/bash
+# Author: kevin-at-f5-dot-com
+# Version: 20260209-1
+# Installs the User Coaching Service Extension
 
 if [[ -z "${BIGUSER}" ]]
 then
@@ -8,6 +11,34 @@ then
     echo 
     exit 1
 fi
+
+## Create temporary Python converter
+cat > "rule-converter.py" << 'EOF'
+import sys
+
+filename = sys.argv[1]
+
+with open(filename, "r") as file:
+    lines = file.readlines()
+
+escape_chars = {
+    '\\': '\\\\',
+    '"': '\\"',
+    '\n': '\\n',
+    '\[': '\\[',
+    '\]': '\\]',
+    '\.': '\\.',
+    '\d': '\\d',
+}
+
+one_line = "".join(lines)
+for old, new in escape_chars.items():
+    one_line = one_line.replace(old, new)
+
+output_filename = filename.split(".")[0] + ".out"
+with open(output_filename, "w") as f:
+    f.write(one_line)
+EOF
 
 ## Create iFile System object (user-coaching-html)
 echo "..Creating the iFile system object for the user-coaching-html"
@@ -41,9 +72,11 @@ curl -sk \
 -d '{"name":"user-blocking-html", "file-name": "user-blocking-html"}' \
 https://localhost/mgmt/tm/ltm/ifile -o /dev/null
 
-# ## Install user-coaching-rule iRule
+## Install user-coaching iRule
 echo "..Creating the user-coaching-rule iRule"
-rule=$(curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-rule | awk '{printf "%s\\n", $0}' | sed -e 's/\"/\\"/g;s/\x27/\\'"'"'/g')
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-html" -o user-coaching-rule.in
+python3 rule-converter.py user-coaching-rule.in
+rule=$(cat user-coaching-rule.out)
 data="{\"name\":\"user-coaching-rule\",\"apiAnonymous\":\"${rule}\"}"
 curl -sk \
 -u ${BIGUSER} \
@@ -51,9 +84,11 @@ curl -sk \
 -d "${data}" \
 https://localhost/mgmt/tm/ltm/rule -o /dev/null
 
-# ## Install user-coaching-ja4t-rule iRule
+## Install user-coaching-ja4t-rule iRule
 echo "..Creating the user-coaching-ja4t-rule iRule"
-rule=$(curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-ja4-rule | awk '{printf "%s\\n", $0}' | sed -e 's/\"/\\"/g;s/\x27/\\'"'"'/g')
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-ja4-rule" -o user-coaching-ja4t-rule.in
+python3 rule-converter.py user-coaching-ja4t-rule.in
+rule=$(cat user-coaching-ja4t-rule.out)
 data="{\"name\":\"user-coaching-ja4t-rule\",\"apiAnonymous\":\"${rule}\"}"
 curl -sk \
 -u ${BIGUSER} \
@@ -81,5 +116,8 @@ curl -sk \
 -X PATCH \
 -d '{"rules":["/Common/user-coaching-rule"]}' \
 https://localhost/mgmt/tm/ltm/virtual/ssloS_F5_UC.app~ssloS_F5_UC-t-4 -o /dev/null
+
+echo "..Cleaning up temporary files"
+rm -f rule-converter.py user-coaching-ja4t-rule.in user-coaching-ja4t-rule.out user-coaching-rule.in user-coaching-rule.out
 
 echo "..Done"
