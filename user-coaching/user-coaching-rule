@@ -1,6 +1,6 @@
 ## SSL Orchestrator Service Extension - User Coaching
-## Version: 3.0
-# Version: 20260209-1
+## Version: 4.0
+# Version: 20260617-1
 ## Author: Kevin Stewart, F5 Networks
 
 when RULE_INIT {
@@ -27,6 +27,7 @@ when RULE_INIT {
         "/Common/Generative_AI_-_Text_&_Code"
         "/Common/Generative_AI_-_Conversation"
         "/Common/Generative_AI_-_Multimedia"
+        "/Common/Other_AI_ML_Applications"
     }
 
     ## ===========================================
@@ -88,7 +89,7 @@ when RULE_INIT {
     ## ===========================================
     # set static::LOG_POOL "/Common/my_syslog_pool"
     set static::LOG_POOL ""
-    
+
     ## ===========================================
     ## EXCLUSION LIST: Use this array to list any file types to exclude from coaching (entry format: file-extension  file-type)
     ##
@@ -105,50 +106,64 @@ when RULE_INIT {
     ##      jpeg is the file extension "array key" (i.e., .jpeg), and "image" is the arbitrary string "array value"`
     ## ===========================================
     array set static::EXCLUDE_FILETYPES {
-        jpg     image
-        jpeg    image
-        jfif    image
-        pjpeg   image
-        pjp     image
-        png     image
-        apng    image
-        avif    image
-        gif     image
-        svg     image
-        bmp     image
-        webp    image
-        heif    image
-        heifs   image
-        heic    image
-        js      script
-        mjs     script
-        woff    script
-        woff2   script
-        mp3     media
-        mp4     media
-        m4a     media
-        mpg     media
-        mpeg    media
-        mov     media
-        avi     media
-        webm    media
-        3gp     media
-        aac     media
-        flac    media
-        ogg     media
-        oga     media
-        wav     media
-        json    data
-        xml     data
-        framercms data
-        map     data
-        ttf     font
-        tiff    font
-        css     stylesheet
-        ico     icon
-        cur     icon
+        jpg         image
+        jpeg        image
+        jfif        image
+        pjpeg       image
+        pjp         image
+        png         image
+        apng        image
+        avif        image
+        gif         image
+        svg         image
+        bmp         image
+        webp        image
+        heif        image
+        heifs       image
+        heic        image
+        js          script
+        mjs         script
+        cjs         script
+        ts          script
+        wasm        binary
+        woff        font
+        woff2       font
+        ttf         font
+        otf         font
+        eot         font
+        tiff        image
+        mp3         media
+        mp4         media
+        m4a         media
+        mpg         media
+        mpeg        media
+        mov         media
+        avi         media
+        webm        media
+        3gp         media
+        aac         media
+        flac        media
+        ogg         media
+        oga         media
+        wav         media
+        json        data
+        xml         data
+        map         data
+        csv         data
+        txt         data
+        bin         data
+        data        data
+        gz          compressed
+        br          compressed
+        zst         compressed
+        css         stylesheet
+        ico         icon
+        cur         icon
+        manifest    pwa
+        webmanifest pwa
     }
 }
+
 
 ## Function JUSTIFICATION: Sends error/log messages to local0 (/var/log/ltm) or a defined HSL pool
 proc JUSTIFICATION { msg host hsl } {
@@ -171,18 +186,18 @@ proc JUSTIFICATION { msg host hsl } {
 proc HANDLER_RESPONSE { identifier hsl } {
     ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
     sharedvar ctx
-    
-    ## Send to logger based on GET or POST data
-    if { [HTTP::method] eq "POST" } {
-        if { $static::LOG_ENABLED } { call JUSTIFICATION [HTTP::payload] [HTTP::host] ${hsl} }
-    } else {
-        if { $static::LOG_ENABLED } { call JUSTIFICATION "" [HTTP::host] ${hsl} }
-    }
 
     ## Set persistence based on ja4 fingerprint or domain cookie
     if { ${identifier} eq "cookie" } {
         ## The cookie option manages state with a domain cookie sent to the client (optionally encrypted)
-        set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
+        # set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
+        set encoded_uri [string range [HTTP::query] [expr { [string first "=" [HTTP::query]] + 1 }] end]
+        if { $encoded_uri eq "" } {
+            HTTP::respond 400 content "Bad Request: missing uri parameter"
+            return
+        }
+        set redir [b64decode [URI::decode $encoded_uri]]
+
         if { [catch {
             if { $static::COOKIE_KEY ne "" } {
                 set cookie_val [b64encode [AES::encrypt ${static::COOKIE_KEY} ${static::COOKIE_IDENT}]]
@@ -192,11 +207,18 @@ proc HANDLER_RESPONSE { identifier hsl } {
         } err] } {    
             set cookie_val ${static::COOKIE_IDENT}
         }
-        set cookie [format "%s=%s; path=/; domain=%s" "f5se_coaching" "${cookie_val}" "[domain [HTTP::host] 2]"]
-        HTTP::respond 302 Location "https://${redir}" "Set-Cookie" ${cookie}
+        set cookie_hdr [format "%s=%s; path=/; domain=%s" "f5se_coaching" "${cookie_val}" "[domain [HTTP::host] 2]"]
+
+        if { $static::LOG_ENABLED } { call JUSTIFICATION "User agreed - redirecting to: ${redir}" [HTTP::host] ${hsl} }
+
+        HTTP::respond 302 Location "https://${redir}" "Set-Cookie" ${cookie_hdr}
 
     } elseif { ${identifier} eq "ja4" } {
         ## The JA4 option manages state with a local session table containing the JA4+ TLS fingerprint of the client
+        if { ! [info exists ctx(ja4)] } {
+            log local0. "USER COACHING ERROR: ja4 set but ctx(ja4) does not exist. The ja4 iRule may be missing"
+            return
+        }
         table set "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}" 1 ${static::JA4_SESSION_TIMER} indef
         set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
         HTTP::respond 302 Location "https://${redir}"
@@ -206,7 +228,7 @@ proc HANDLER_RESPONSE { identifier hsl } {
 when CLIENT_ACCEPTED {
     ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
     sharedvar ctx
-    
+
     ## Set hsl value
     if { ($static::LOG_ENABLED) && ($static::LOG_POOL ne "") } {
         set hsl [HSL::open -proto UDP -pool $static::LOG_POOL]
@@ -216,20 +238,10 @@ when CLIENT_ACCEPTED {
 }
 
 when HTTP_REQUEST priority 10 {
-    ## SET VARIABLE: Catch and decrypt the f5se_coaching cookie
-    if { [HTTP::cookie exists f5se_coaching] } {
-        if { [catch {
-            if { $static::COOKIE_KEY ne "" } {
-                set tracker_cookie [AES::decrypt ${static::COOKIE_KEY} [b64decode [HTTP::cookie f5se_coaching]]]
-            } else { 
-                set tracker_cookie [HTTP::cookie f5se_coaching]
-            }
-        } err] } {    
-            set tracker_cookie [HTTP::cookie f5se_coaching]
-        }
-    }
 
-    # SET VARIABLE: Set category lookup type (or set default)
+    ## -------------------------------------------------------------------
+    ## Setup. Set category lookup type (or set default)
+    ## -------------------------------------------------------------------
     switch $static::CATEGORY_TYPE {
         "subscription" { set query_type "request_default" }
         "custom_only" { set query_type "custom"}
@@ -237,14 +249,18 @@ when HTTP_REQUEST priority 10 {
         default { set query_type "custom" }
     }
 
-    # SET VARIABLE: Set identifier type (or set default)
+    ## -------------------------------------------------------------------
+    ## Setup. Set identifier type (or set default)
+    ## -------------------------------------------------------------------
     switch $static::IDENTIFIER_TYPE {
         "ja4" { set identifier "ja4" }
         "cookie" { set identifier "cookie" }
         default { set identifier "cookie" }
     }
 
-    ## SET VARIABLE: Perform a single category lookup (and test for URLDB errors)
+    ## -------------------------------------------------------------------
+    ## Setup. Perform a single category lookup (and test for URLDB errors)
+    ## -------------------------------------------------------------------
     if { [catch {
         set cat [CATEGORY::lookup "https://[HTTP::host]/" ${query_type} -ip [IP::local_addr]]
     } err] } {
@@ -253,8 +269,10 @@ when HTTP_REQUEST priority 10 {
     }
 
     ## Evaluate request conditions...
-    
-    ## TEST CONDITION: Return coaching return handler if URL is /f5_handler_coaching
+
+    ## -------------------------------------------------------------------
+    ## 1. Serve the coaching handler when the browser returns to /f5_se_coaching
+    ## -------------------------------------------------------------------
     if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
         switch -glob [HTTP::query] {
             "uri=*" {
@@ -265,61 +283,107 @@ when HTTP_REQUEST priority 10 {
                 }
             }
             default {
-                HTTP::respond 500
+                HTTP::respond 400 content "Bad Request"
             }
         }
+        return
+    }
 
-    ## TEST CONDITION: Return blocking response if request matches blocking categories
-    } elseif { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
+    ## -------------------------------------------------------------------
+    ## 2. Bypass coaching for requests that cannot display an HTML interstitial:
+    ##    - OPTIONS (CORS preflight): browser sends this before the real request
+    ##    - Sec-Fetch-Mode: cors / no-cors: cross-origin XHR / fetch() calls
+    ##    - Sec-Fetch-Dest: empty: any fetch()/XMLHttpRequest (no document target)
+    ##    Serving an HTML page to any of these causes CORS / API failures.
+    ## -------------------------------------------------------------------
+    if { [HTTP::method] eq "OPTIONS" } {
+        return
+    }
+    set sfm [string tolower [HTTP::header "Sec-Fetch-Mode"]]
+    if { ($sfm eq "cors") || ($sfm eq "no-cors") } {
+        return
+    }
+    if { [string tolower [HTTP::header "Sec-Fetch-Dest"]] eq "empty" } {
+        return
+    }
+
+    ## -------------------------------------------------------------------
+    ## 3a. If the client already holds a valid coaching cookie, pass through.
+    ## -------------------------------------------------------------------
+    if { (${identifier} eq "cookie") && ([HTTP::cookie exists f5se_coaching]) } {
+        set tracker ""
+        if { [catch {
+            if { $static::COOKIE_KEY ne "" } {
+                set tracker [AES::decrypt $static::COOKIE_KEY [b64decode [HTTP::cookie f5se_coaching]]]
+            } else {
+                set tracker [HTTP::cookie f5se_coaching]
+            }
+        } err] } {
+            set tracker [HTTP::cookie f5se_coaching]
+        }
+        if { $tracker eq $static::COOKIE_IDENT } {
+            return
+        }
+    }
+
+    ## -------------------------------------------------------------------
+    ## 3b. If the client already holds a valid ja4 token, pass through.
+    ## -------------------------------------------------------------------
+    if { (${identifier} eq "ja4") } {
+        if { ! [info exists ctx(ja4)] } {
+            log local0. "USER COACHING ERROR: ja4 set but ctx(ja4) does not exist. The ja4 iRule may be missing"
+            return
+        }
+        if { ($ctx(ja4) ne "") && (([info exists ctx(ptcl)]) && ($ctx(ptcl) eq "https")) && ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] == 1) } {
+            return
+        }
+    }
+
+    ## -------------------------------------------------------------------
+    ## 4. Bypass coaching for embedded resource types (images, scripts, etc.)
+    ##    These cannot display an interstitial HTML page.
+    ## -------------------------------------------------------------------
+    set base [URI::basename [HTTP::uri]]
+    ## Strip query/fragment if URI::basename left any behind
+    set base [string range $base 0 [expr { [string first "@" $base] - 1 }]]
+    if { $base eq "" } { set base [URI::basename [HTTP::uri]] }
+
+    set last_dot [string last "." $base]
+    if { $last_dot != -1 } {
+        set ext [string range $base [expr { $last_dot + 1 }] end]
+        if { [catch { set _ $static::EXCLUDE_FILETYPES($ext) }] == 0 } {
+            ## Extension matched: let the request pass without coaching
+            return
+        }
+    }
+
+    ## -------------------------------------------------------------------
+    ## 5. Return blocking response if request matches blocking categories
+    ## -------------------------------------------------------------------
+    if { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
         set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
         if { $static::LOG_ENABLED } { call JUSTIFICATION "Request Blocked" [HTTP::host] ${hsl} }
         HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]] "Connection" "close"
+        return
+    }
 
-    ## TEST CONDITION: Return coaching response if request matches coaching categories (and persistence identifier == cookie)
-    ##  if cookie identifier AND is coaching category AND cookie doesn't exist
-    } elseif { (${identifier} eq "cookie") && 
-        ([lsearch -exact $static::COACHING_CATEGORIES [getfield ${cat} " " 1]] >= 0) &&
-        ((![HTTP::cookie exists f5se_coaching]) || (${tracker_cookie} ne ${static::COOKIE_IDENT})) } {
-        
-        ## Test for an excluded file type (bypass coaching if match)
-        set excluded 0 ; if { [set baseurl [string range [URI::basename [HTTP::uri]] 0 [expr {[string first "@" [URI::basename [HTTP::uri]]] - 1}]]] eq "" } { set baseurl [URI::basename [HTTP::uri]] }
-        if { [set last_dot_pos [string last "." ${baseurl}]] != -1} {
-            ## This block with catch/fail if no match in the file extension array
-            catch { set filetmp $static::EXCLUDE_FILETYPES([string range ${baseurl} [expr {$last_dot_pos + 1}] end]) ; set excluded 1 }
-        }
-        
-        if { ${excluded} == 0 } {
-            set receive_host [HTTP::host]
-            set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
-            set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-            if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
-            HTTP::respond 200 content [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
-        }
-
-    ## RETURN COACHING response if request matches coaching categories (and persistence identifier == ja4)
-    ##  if ja4 identifier AND ja4 value exists & not-empty AND ctx(ptcl) exists & is https AND is coaching category AND ja4 table entry doesn't exist
-    } elseif { (${identifier} eq "ja4") && 
-        (([info exists ctx(ja4)]) && ($ctx(ja4) ne "")) && 
-        (([info exists ctx(ptcl)]) && ($ctx(ptcl) eq "https")) && 
-        ([lsearch -exact $static::COACHING_CATEGORIES [getfield ${cat} " " 1]] >= 0) &&
-        ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] < 1) } {
-        
-        ## Test for an excluded file type (bypass coaching if match)
-        set excluded 0 ; if { [set baseurl [string range [URI::basename [HTTP::uri]] 0 [expr {[string first "@" [URI::basename [HTTP::uri]]] - 1}]]] eq "" } { set baseurl [URI::basename [HTTP::uri]] }
-        if { [set last_dot_pos [string last "." ${baseurl}]] != -1} {
-            ## This block with catch/fail if no match in the file extension array
-            catch { set filetmp $static::EXCLUDE_FILETYPES([string range ${baseurl} [expr {$last_dot_pos + 1}] end]) ; set excluded 1 }
-        }
-        
-        if { ${excluded} == 0 } {
-            set receive_host [HTTP::host]
-            set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
-            set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-            if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
-            HTTP::respond 200 content [subst -nocommands -nobackslashes [ifile get user-coaching-html]]
-        }
+    ## -------------------------------------------------------------------
+    ## 6. Return coaching response if all above tests pass
+    ## -------------------------------------------------------------------
+    if { ([lsearch -exact $static::COACHING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
+        set receive_host [HTTP::host]
+        set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
+        set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
+        if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
+        HTTP::respond 200 content \
+            [subst -nocommands -nobackslashes [ifile get user-coaching-html]] \
+            "Content-Type" "text/html; charset=UTF-8" \
+            "Cache-Control" "no-store, no-cache, must-revalidate" \
+            "Pragma" "no-cache" \
+            "Connection" "close"
     }
 }
+
 ## COACHING return handler
 when HTTP_REQUEST_DATA {
     if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
