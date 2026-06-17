@@ -1,392 +1,117 @@
-## SSL Orchestrator Service Extension - User Coaching
-## Version: 4.0
+#!/bin/bash
+# Author: kevin-at-f5-dot-com
 # Version: 20260617-1
-## Author: Kevin Stewart, F5 Networks
+# Installs the User Coaching Service Extension
 
-when RULE_INIT {
-    ## ===========================================
-    ## BLOCKING CATEGORIES: Use this array to include any URL categories to trigger a blocking event.
-    ## Note that blocking matches take precedence over coaching matches.
-    ## Use the following TMSH command on BIG-IP to find the list of
-    ## subscription categories:
-    ##   tmsh list sys url-db url-category |grep "sys url-db url-category " |awk -F" " '{print $4}'
-    ## ===========================================
-    set static::BLOCKING_CATEGORIES {
-        "/Common/Uncategorized"
-        "/Common/Unknown"
-    }
+if [[ -z "${BIGUSER}" ]]
+then
+    echo 
+    echo "The user:pass must be set in an environment variable. Exiting."
+    echo "   export BIGUSER='admin:password'"
+    echo 
+    exit 1
+fi
 
-    ## ===========================================
-    ## COACHING CATEGORIES: Use this array to include any URL categories to trigger a user coaching event. 
-    ## Use the following TMSH command on BIG-IP to find the list of
-    ## subscription categories:
-    ##   tmsh list sys url-db url-category |grep "sys url-db url-category " |awk -F" " '{print $4}'
-    ## ===========================================
-    set static::COACHING_CATEGORIES {
-        "/Common/Generative_AI"
-        "/Common/Generative_AI_-_Text_&_Code"
-        "/Common/Generative_AI_-_Conversation"
-        "/Common/Generative_AI_-_Multimedia"
-        "/Common/Other_AI_ML_Applications"
-    }
+## Create temporary Python converter
+cat << EOF > "rule-converter.py"
+import json
+import sys
 
-    ## ===========================================
-    ## CATEGORY TYPE: Use this option to indicate the type of category to use ("subscription", "custom_only", or "sub_and_custom").
-    ## ===========================================
-    set static::CATEGORY_TYPE "subscription"
+filename = sys.argv[1]
 
-    ## ===========================================
-    ## IDENTIFIER TYPE: Use this option to indicate the type of identifier to use ("ja4" or "cookie").
-    ## The JA4 method creates a local session table of unique identies and requires a JA4 TLS iRule on the -in-t-4/6 interceptoion rule VIP to perform a client TLS fingerprint.
-    ## The cookie method inserts a domain cookie to the client.
-    ## ===========================================
-    set static::IDENTIFIER_TYPE "cookie"
-    # set static::IDENTIFIER_TYPE "ja4"
+with open(filename, "r", encoding="utf-8") as file:
+    content = file.read()
 
-    ## ===========================================
-    ## COOKIE IDENT: Create an AES128 key and an arbitrary string here that will be encrypted into the cookie value (for validation) -- if the "cookie" IDENTIFIER_TYPE is used
-    ## If COOKIE_KEY contains an AES key string, the cookie value (COOKIE_IDENT) will transmit encrypted using this key
-    ## If COOKIE_KEY is left empty, the cookie value (COOKIE_IDENT) will transmit unencrypted
-    ## Ref: https://clouddocs.f5.com/api/irules/AES.html for details on creating an AES key string
-    ## ===========================================
-    # set static::COOKIE_KEY "AES 128 b55c4753cba6adaa0e4ea7640504d9b4"
-    set static::COOKIE_KEY ""
-    set static::COOKIE_IDENT "true"
+# json.dumps handles all required JSON escaping: backslash, quotes, newlines,
+# and non-ASCII characters (encoded as \uXXXX). Strip the surrounding quotes
+# it adds so the output is the raw escaped string value.
+json_escaped = json.dumps(content)[1:-1]
 
-    ## ===========================================
-    ## SESSION TIMER: Use this value to define the JA4 session timeout value for the user session table entry (in seconds) -- default 3600 seconds
-    ## ===========================================
-    set static::JA4_SESSION_TIMER 3600
+output_filename = filename.rsplit(".", 1)[0] + ".out"
+with open(output_filename, "w", encoding="utf-8") as f:
+    f.write(json_escaped)
+EOF
 
-    ## ===========================================
-    ## BLOCKING MESSAGE: Use this string to indicate the message that will appear on the blocking page.
-    ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
-    ## ===========================================
-    set static::BLOCKING_MESSAGE {
-        You appear to be requesting a site <b>(THISHOST)</b> that is expressly prohibited via corporate policy. This request has been logged.
-    }
+## Create iFile System object (user-coaching-html)
+echo "..Creating the iFile system object for the user-coaching-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name": "user-coaching-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-html"}' \
+https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
 
-    ## ===========================================
-    ## COACHING MESSAGE: Use this string to indicate the message that will appear on the coaching page.
-    ## The "THISHOST" variable is replaced at runtime with the actual HTTP Host value.
-    ## ===========================================
-    set static::COACHING_MESSAGE {
-        You appear to be requesting a site <b>(THISHOST)</b> that may expose sensitive information to a third party. By accessing this site you consent to additional enterprise security controls. This request will be logged.
-    }
+# ## Create iFile LTM object (user-coaching-html)
+echo "..Creating the iFile LTM object for the user-coaching-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name":"user-coaching-html", "file-name": "user-coaching-html"}' \
+https://localhost/mgmt/tm/ltm/ifile -o /dev/null
 
-    ## ===========================================
-    ## REQUIRE JUSTIFICATION: Use this Boolean to require a justification in the coaching page.
-    ## ===========================================
-    set static::REQUIRE_JUSTIFICATION 0
+## Create iFile System object (user-blocking-html)
+echo "..Creating the iFile system object for the user-blocking-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name": "user-blocking-html", "source-path": "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-blocking-html"}' \
+https://localhost/mgmt/tm/sys/file/ifile/ -o /dev/null
 
-    ## ===========================================
-    ## LOG ENABLED: Use this Boolean option to enable/disable logging of coaching page access
-    ## ===========================================
-    set static::LOG_ENABLED 1
+# ## Create iFile LTM object (user-blocking-html)
+echo "..Creating the iFile LTM object for the user-blocking-html"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d '{"name":"user-blocking-html", "file-name": "user-blocking-html"}' \
+https://localhost/mgmt/tm/ltm/ifile -o /dev/null
 
-    ## ===========================================
-    ## LOG POOL: Use this to indicate a remote HSL logging pool. Logging (LOG_ENABLED) must be enabled (1)
-    ## ===========================================
-    # set static::LOG_POOL "/Common/my_syslog_pool"
-    set static::LOG_POOL ""
+## Install user-coaching iRule
+echo "..Creating the user-coaching-rule iRule"
+# curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-rule" -o user-coaching-rule.in
+python3 rule-converter.py user-coaching-rule.in
+rule=$(cat user-coaching-rule.out)
+data="{\"name\":\"user-coaching-rule\",\"apiAnonymous\":\"${rule}\"}"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d "${data}" \
+https://localhost/mgmt/tm/ltm/rule -o /dev/null
 
-    ## ===========================================
-    ## EXCLUSION LIST: Use this array to list any file types to exclude from coaching (entry format: file-extension  file-type)
-    ##
-    ##  These are typically objects referenced internally from a web document where the request would not expose a
-    ##  a way to handle to the user coaching response (ex. request for a .jpg image referenced in the page document).
-    ##  If the referenced object lives inside the same domain as the requested site, the domain cookie or ja4 fingerprint 
-    ##  would normally prevent a coaching response. However, if a referenced object is outside the requested site, neither 
-    ##  domain cookie nor ja4 fingerprint would prevent the coaching response. This array bypasses the coaching response
-    ##  for the set of requested file extensions.
-    ##
-    ##  Entry format: extension     arbitrary string value (no spaces)
-    ##      ex. jpeg    image
-    ##
-    ##      jpeg is the file extension "array key" (i.e., .jpeg), and "image" is the arbitrary string "array value"`
-    ## ===========================================
-    array set static::EXCLUDE_FILETYPES {
-        jpg         image
-        jpeg        image
-        jfif        image
-        pjpeg       image
-        pjp         image
-        png         image
-        apng        image
-        avif        image
-        gif         image
-        svg         image
-        bmp         image
-        webp        image
-        heif        image
-        heifs       image
-        heic        image
-        js          script
-        mjs         script
-        cjs         script
-        ts          script
-        wasm        binary
-        woff        font
-        woff2       font
-        ttf         font
-        otf         font
-        eot         font
-        tiff        image
-        mp3         media
-        mp4         media
-        m4a         media
-        mpg         media
-        mpeg        media
-        mov         media
-        avi         media
-        webm        media
-        3gp         media
-        aac         media
-        flac        media
-        ogg         media
-        oga         media
-        wav         media
-        json        data
-        xml         data
-        map         data
-        csv         data
-        txt         data
-        bin         data
-        data        data
-        gz          compressed
-        br          compressed
-        zst         compressed
-        css         stylesheet
-        ico         icon
-        cur         icon
-        manifest    pwa
-        webmanifest pwa
-    }
-}
+## Install user-coaching-ja4t-rule iRule
+echo "..Creating the user-coaching-ja4t-rule iRule"
+curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-ja4-rule" -o user-coaching-ja4t-rule.in
+python3 rule-converter.py user-coaching-ja4t-rule.in
+rule=$(cat user-coaching-ja4t-rule.out)
+data="{\"name\":\"user-coaching-ja4t-rule\",\"apiAnonymous\":\"${rule}\"}"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d "${data}" \
+https://localhost/mgmt/tm/ltm/rule -o /dev/null
 
+sleep 5
 
-## Function JUSTIFICATION: Sends error/log messages to local0 (/var/log/ltm) or a defined HSL pool
-proc JUSTIFICATION { msg host hsl } {
-    ## Set up message content
-    set timestr [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
-    set usermsg "ALERT-COACHING-TRIGGER::${timestr}::client=[IP::client_addr]::host=${host}::${msg}"
+## Create SSLO User-Coaching Inspection Service
+echo "..Creating the SSLO user-coaching inspection service"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-d "$(curl -sk https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-service)" \
+https://localhost/mgmt/shared/iapp/blocks -o /dev/null
 
-    ## Set up log output
-    if { $hsl ne "" } {
-        ## Log to defined HSL pool
-        HSL::send ${hsl} "<134>1 [clock format [clock seconds] -gmt 1 -format {%Y-%m-%dT%H:%M:%S.000Z}] $static::tcl_platform(machine) sslo - [TMM::cmp_count] - ${usermsg}"
-    } else {
-        ## Log to local syslog
-        log -noname local0. $usermsg
-    }
-}
+## Sleep for 15 seconds to allow SSLO inspection service creation to finish
+echo "..Sleeping for 15 seconds to allow SSLO inspection service creation to finish"
+sleep 15
 
-## Function HANDLER_RESPONSE: Issues a 302 redirect back to origin URL when request is to /f5_handler_coaching, 
-##  and handles cookie or ja4 identifier persistence
-proc HANDLER_RESPONSE { identifier hsl } {
-    ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
-    sharedvar ctx
+## Modify SSLO User-Coaching Service (remove tenant-restrictions iRule)
+echo "..Modifying the SSLO user-coaching service"
+curl -sk \
+-u ${BIGUSER} \
+-H "Content-Type: application/json" \
+-X PATCH \
+-d '{"rules":["/Common/user-coaching-rule"]}' \
+https://localhost/mgmt/tm/ltm/virtual/ssloS_F5_UC.app~ssloS_F5_UC-t-4 -o /dev/null
 
-    ## Set persistence based on ja4 fingerprint or domain cookie
-    if { ${identifier} eq "cookie" } {
-        ## The cookie option manages state with a domain cookie sent to the client (optionally encrypted)
-        # set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
-        set encoded_uri [string range [HTTP::query] [expr { [string first "=" [HTTP::query]] + 1 }] end]
-        if { $encoded_uri eq "" } {
-            HTTP::respond 400 content "Bad Request: missing uri parameter"
-            return
-        }
-        set redir [b64decode [URI::decode $encoded_uri]]
+echo "..Cleaning up temporary files"
+rm -f rule-converter.py user-coaching-ja4t-rule.in user-coaching-ja4t-rule.out user-coaching-rule.in user-coaching-rule.out
 
-        if { [catch {
-            if { $static::COOKIE_KEY ne "" } {
-                set cookie_val [b64encode [AES::encrypt ${static::COOKIE_KEY} ${static::COOKIE_IDENT}]]
-            } else { 
-                set cookie_val ${static::COOKIE_IDENT}
-            }
-        } err] } {    
-            set cookie_val ${static::COOKIE_IDENT}
-        }
-        set cookie_hdr [format "%s=%s; path=/; domain=%s" "f5se_coaching" "${cookie_val}" "[domain [HTTP::host] 2]"]
-
-        if { $static::LOG_ENABLED } { call JUSTIFICATION "User agreed - redirecting to: ${redir}" [HTTP::host] ${hsl} }
-
-        HTTP::respond 302 Location "https://${redir}" "Set-Cookie" ${cookie_hdr}
-
-    } elseif { ${identifier} eq "ja4" } {
-        ## The JA4 option manages state with a local session table containing the JA4+ TLS fingerprint of the client
-        if { ! [info exists ctx(ja4)] } {
-            log local0. "USER COACHING ERROR: ja4 set but ctx(ja4) does not exist. The ja4 iRule may be missing"
-            return
-        }
-        table set "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}" 1 ${static::JA4_SESSION_TIMER} indef
-        set redir [b64decode [URI::decode [lindex [split [HTTP::query] "="] 1]]]
-        HTTP::respond 302 Location "https://${redir}"
-    }
-}
-
-when CLIENT_ACCEPTED {
-    ## Get ctx shared variable from SSLO (stores JA4 fingerprint)
-    sharedvar ctx
-
-    ## Set hsl value
-    if { ($static::LOG_ENABLED) && ($static::LOG_POOL ne "") } {
-        set hsl [HSL::open -proto UDP -pool $static::LOG_POOL]
-    } else {
-        set hsl ""
-    }
-}
-
-when HTTP_REQUEST priority 10 {
-
-    ## -------------------------------------------------------------------
-    ## Setup. Set category lookup type (or set default)
-    ## -------------------------------------------------------------------
-    switch $static::CATEGORY_TYPE {
-        "subscription" { set query_type "request_default" }
-        "custom_only" { set query_type "custom"}
-        "sub_and_custom" { set query_type "request_default_and_custom" }
-        default { set query_type "custom" }
-    }
-
-    ## -------------------------------------------------------------------
-    ## Setup. Set identifier type (or set default)
-    ## -------------------------------------------------------------------
-    switch $static::IDENTIFIER_TYPE {
-        "ja4" { set identifier "ja4" }
-        "cookie" { set identifier "cookie" }
-        default { set identifier "cookie" }
-    }
-
-    ## -------------------------------------------------------------------
-    ## Setup. Perform a single category lookup (and test for URLDB errors)
-    ## -------------------------------------------------------------------
-    if { [catch {
-        set cat [CATEGORY::lookup "https://[HTTP::host]/" ${query_type} -ip [IP::local_addr]]
-    } err] } {
-        log local0. "USER COACHING ERROR: $err"
-        return
-    }
-
-    ## Evaluate request conditions...
-
-    ## -------------------------------------------------------------------
-    ## 1. Serve the coaching handler when the browser returns to /f5_se_coaching
-    ## -------------------------------------------------------------------
-    if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
-        switch -glob [HTTP::query] {
-            "uri=*" {
-                if { [HTTP::method] eq "POST" } { 
-                    HTTP::collect [HTTP::payload length]
-                } else { 
-                    call HANDLER_RESPONSE $identifier $hsl
-                }
-            }
-            default {
-                HTTP::respond 400 content "Bad Request"
-            }
-        }
-        return
-    }
-
-    ## -------------------------------------------------------------------
-    ## 2. Bypass coaching for requests that cannot display an HTML interstitial:
-    ##    - OPTIONS (CORS preflight): browser sends this before the real request
-    ##    - Sec-Fetch-Mode: cors / no-cors: cross-origin XHR / fetch() calls
-    ##    - Sec-Fetch-Dest: empty: any fetch()/XMLHttpRequest (no document target)
-    ##    Serving an HTML page to any of these causes CORS / API failures.
-    ## -------------------------------------------------------------------
-    if { [HTTP::method] eq "OPTIONS" } {
-        return
-    }
-    set sfm [string tolower [HTTP::header "Sec-Fetch-Mode"]]
-    if { ($sfm eq "cors") || ($sfm eq "no-cors") } {
-        return
-    }
-    if { [string tolower [HTTP::header "Sec-Fetch-Dest"]] eq "empty" } {
-        return
-    }
-
-    ## -------------------------------------------------------------------
-    ## 3a. If the client already holds a valid coaching cookie, pass through.
-    ## -------------------------------------------------------------------
-    if { (${identifier} eq "cookie") && ([HTTP::cookie exists f5se_coaching]) } {
-        set tracker ""
-        if { [catch {
-            if { $static::COOKIE_KEY ne "" } {
-                set tracker [AES::decrypt $static::COOKIE_KEY [b64decode [HTTP::cookie f5se_coaching]]]
-            } else {
-                set tracker [HTTP::cookie f5se_coaching]
-            }
-        } err] } {
-            set tracker [HTTP::cookie f5se_coaching]
-        }
-        if { $tracker eq $static::COOKIE_IDENT } {
-            return
-        }
-    }
-
-    ## -------------------------------------------------------------------
-    ## 3b. If the client already holds a valid ja4 token, pass through.
-    ## -------------------------------------------------------------------
-    if { (${identifier} eq "ja4") } {
-        if { ! [info exists ctx(ja4)] } {
-            log local0. "USER COACHING ERROR: ja4 set but ctx(ja4) does not exist. The ja4 iRule may be missing"
-            return
-        }
-        if { ($ctx(ja4) ne "") && (([info exists ctx(ptcl)]) && ($ctx(ptcl) eq "https")) && ([table lookup "[IP::client_addr]_[domain [HTTP::host] 2]_${ctx(ja4)}"] == 1) } {
-            return
-        }
-    }
-
-    ## -------------------------------------------------------------------
-    ## 4. Bypass coaching for embedded resource types (images, scripts, etc.)
-    ##    These cannot display an interstitial HTML page.
-    ## -------------------------------------------------------------------
-    set base [URI::basename [HTTP::uri]]
-    ## Strip query/fragment if URI::basename left any behind
-    set base [string range $base 0 [expr { [string first "@" $base] - 1 }]]
-    if { $base eq "" } { set base [URI::basename [HTTP::uri]] }
-
-    set last_dot [string last "." $base]
-    if { $last_dot != -1 } {
-        set ext [string range $base [expr { $last_dot + 1 }] end]
-        if { [catch { set _ $static::EXCLUDE_FILETYPES($ext) }] == 0 } {
-            ## Extension matched: let the request pass without coaching
-            return
-        }
-    }
-
-    ## -------------------------------------------------------------------
-    ## 5. Return blocking response if request matches blocking categories
-    ## -------------------------------------------------------------------
-    if { ([lsearch -exact $static::BLOCKING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
-        set receive_msg [string map [list "THISHOST" "[HTTP::host]"] $static::BLOCKING_MESSAGE]
-        if { $static::LOG_ENABLED } { call JUSTIFICATION "Request Blocked" [HTTP::host] ${hsl} }
-        HTTP::respond 200 content  [subst -nocommands -nobackslashes [ifile get user-blocking-html]] "Connection" "close"
-        return
-    }
-
-    ## -------------------------------------------------------------------
-    ## 6. Return coaching response if all above tests pass
-    ## -------------------------------------------------------------------
-    if { ([lsearch -exact $static::COACHING_CATEGORIES [getfield ${cat} " " 1]] >= 0) } {
-        set receive_host [HTTP::host]
-        set receive_uri [URI::encode [b64encode [HTTP::host][HTTP::uri]]]
-        set receive_msg [string map [list "THISHOST" "[domain [HTTP::host] 2]"] $static::COACHING_MESSAGE]
-        if { $static::REQUIRE_JUSTIFICATION } { set receive_justify "enabled" } else { set receive_justify "" }
-        HTTP::respond 200 content \
-            [subst -nocommands -nobackslashes [ifile get user-coaching-html]] \
-            "Content-Type" "text/html; charset=UTF-8" \
-            "Cache-Control" "no-store, no-cache, must-revalidate" \
-            "Pragma" "no-cache" \
-            "Connection" "close"
-    }
-}
-
-## COACHING return handler
-when HTTP_REQUEST_DATA {
-    if { [HTTP::uri] starts_with "/f5_handler_coaching" } {
-        call HANDLER_RESPONSE $identifier $hsl
-    }
-}
+echo "..Done"
