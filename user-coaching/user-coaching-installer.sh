@@ -1,6 +1,6 @@
 #!/bin/bash
 # Author: kevin-at-f5-dot-com
-# Version: 20260209-1
+# Version: 20260617-1
 # Installs the User Coaching Service Extension
 
 if [[ -z "${BIGUSER}" ]]
@@ -13,31 +13,23 @@ then
 fi
 
 ## Create temporary Python converter
-cat > "rule-converter.py" << 'EOF'
+cat << EOF > "rule-converter.py"
+import json
 import sys
 
 filename = sys.argv[1]
 
-with open(filename, "r") as file:
-    lines = file.readlines()
+with open(filename, "r", encoding="utf-8") as file:
+    content = file.read()
 
-escape_chars = {
-    '\\': '\\\\',
-    '"': '\\"',
-    '\n': '\\n',
-    '\[': '\\[',
-    '\]': '\\]',
-    '\.': '\\.',
-    '\d': '\\d',
-}
+# json.dumps handles all required JSON escaping: backslash, quotes, newlines,
+# and non-ASCII characters (encoded as \uXXXX). Strip the surrounding quotes
+# it adds so the output is the raw escaped string value.
+json_escaped = json.dumps(content)[1:-1]
 
-one_line = "".join(lines)
-for old, new in escape_chars.items():
-    one_line = one_line.replace(old, new)
-
-output_filename = filename.split(".")[0] + ".out"
-with open(output_filename, "w") as f:
-    f.write(one_line)
+output_filename = filename.rsplit(".", 1)[0] + ".out"
+with open(output_filename, "w", encoding="utf-8") as f:
+    f.write(json_escaped)
 EOF
 
 ## Create iFile System object (user-coaching-html)
@@ -74,7 +66,7 @@ https://localhost/mgmt/tm/ltm/ifile -o /dev/null
 
 ## Install user-coaching iRule
 echo "..Creating the user-coaching-rule iRule"
-curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-rule" -o user-coaching-rule.in
+# curl -sk "https://raw.githubusercontent.com/f5devcentral/sslo-service-extensions/refs/heads/main/user-coaching/user-coaching-rule" -o user-coaching-rule.in
 python3 rule-converter.py user-coaching-rule.in
 rule=$(cat user-coaching-rule.out)
 data="{\"name\":\"user-coaching-rule\",\"apiAnonymous\":\"${rule}\"}"
@@ -95,6 +87,8 @@ curl -sk \
 -H "Content-Type: application/json" \
 -d "${data}" \
 https://localhost/mgmt/tm/ltm/rule -o /dev/null
+
+sleep 5
 
 ## Create SSLO User-Coaching Inspection Service
 echo "..Creating the SSLO user-coaching inspection service"
